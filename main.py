@@ -5,9 +5,22 @@ GLOBAL STAR：成名之路 — 以 CustomTkinter 製作的敘事模擬遊戲。
 from __future__ import annotations
 
 import random
+import re
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import customtkinter as ctk
+
+PROJECT_ROOT = Path(__file__).resolve().parent
+CH1_IMAGE_ROOT = PROJECT_ROOT / "image" / "Pop_Idol_Base" / "CH1"
+CH1_INTRO_DIR = CH1_IMAGE_ROOT / "引言"
+CH1_STORY_FILE = CH1_IMAGE_ROOT / "圖片文本對照.txt"
+CH1_BRANCH_DIRS: Dict[str, Path] = {
+    "a": CH1_IMAGE_ROOT / "a.交給公司製作",
+    "b": CH1_IMAGE_ROOT / "b.自己創作",
+    "c": CH1_IMAGE_ROOT / "c.與神秘製作人合作",
+}
+SCENE_IMAGE_MAX_SIZE = (680, 380)
 
 
 def clamp_player(player: Dict[str, Any]) -> None:
@@ -42,6 +55,50 @@ def apply_deltas(player: Dict[str, Any], deltas: Dict[str, int]) -> None:
     clamp_player(player)
 
 
+def load_ch1_story_map(path: Path = CH1_STORY_FILE) -> Dict[str, str]:
+    """讀取第一章圖片編號與旁白對照表。"""
+    if not path.is_file():
+        return {}
+    stories: Dict[str, str] = {}
+    current_id: Optional[str] = None
+    buffer: List[str] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if re.fullmatch(r"\d{3}", line.strip()):
+            if current_id is not None:
+                stories[current_id] = "\n".join(buffer).strip()
+            current_id = line.strip()
+            buffer = []
+        elif current_id is not None:
+            buffer.append(line)
+    if current_id is not None:
+        stories[current_id] = "\n".join(buffer).strip()
+    return stories
+
+
+def format_ch1_narrative(text: str, player: Dict[str, Any]) -> str:
+    """替換第一章旁白中的城市、風格等佔位符。"""
+    city = str(player.get("city") or "這座城市")
+    style = str(player.get("style") or "流行")
+    formatted = text.replace("{city_name}", city).replace("{style}", style)
+    return formatted.replace("**", "")
+
+
+def ch1_image_path(scene_id: str) -> Optional[Path]:
+    """依場景編號回傳對應 JPG 路徑。"""
+    sid = scene_id.zfill(3)
+    intro = CH1_INTRO_DIR / f"{sid}.jpg"
+    if intro.is_file():
+        return intro
+    num = int(sid)
+    if 3 <= num <= 6:
+        return CH1_BRANCH_DIRS["a"] / f"{sid}.jpg"
+    if 7 <= num <= 10:
+        return CH1_BRANCH_DIRS["b"] / f"{sid}.jpg"
+    if 11 <= num <= 15:
+        return CH1_BRANCH_DIRS["c"] / f"{sid}.jpg"
+    return None
+
+
 class GlobalStarApp(ctk.CTk):
     """主視窗與遊戲流程控制。"""
 
@@ -57,6 +114,8 @@ class GlobalStarApp(ctk.CTk):
         self.player: Dict[str, Any] = new_player()
         # 第二章 B 路線：第一張專輯選項 A/B 後的專輯類型（過場用）
         self._album_type: str = ""
+        self._ch1_stories: Dict[str, str] = load_ch1_story_map()
+        self._current_ctk_image: Optional[ctk.CTkImage] = None
 
         self._build_layout()
         self.show_start()
@@ -95,8 +154,12 @@ class GlobalStarApp(ctk.CTk):
         title: str,
         story: str,
         comments: Optional[List[str]] = None,
+        *,
+        clear_image: bool = True,
     ) -> None:
         """顯示標題與故事正文（標題與內文分開顯示）。"""
+        if clear_image:
+            self.clear_scene_image()
         body = f"{title}\n\n{story.strip()}" if title else story.strip()
         self.set_story(body)
         if comments is not None:
@@ -127,14 +190,27 @@ class GlobalStarApp(ctk.CTk):
         )
         self.title_label.grid(row=0, column=0, columnspan=2, pady=(16, 8), sticky="n")
 
+        self.story_panel = ctk.CTkFrame(self, fg_color="transparent")
+        self.story_panel.grid(row=1, column=0, padx=(20, 10), pady=10, sticky="nsew")
+        self.story_panel.grid_columnconfigure(0, weight=1)
+        self.story_panel.grid_rowconfigure(1, weight=1)
+
+        self.scene_image_label = ctk.CTkLabel(
+            self.story_panel,
+            text="",
+            corner_radius=12,
+        )
+        self._scene_image_grid = {"row": 0, "column": 0, "pady": (0, 8), "sticky": "n"}
+        # 初始不佔版面；有插圖時再 grid
+
         self.story_box = ctk.CTkTextbox(
-            self,
+            self.story_panel,
             wrap="word",
             font=ctk.CTkFont(size=18),
             corner_radius=12,
             border_width=1,
         )
-        self.story_box.grid(row=1, column=0, padx=(20, 10), pady=10, sticky="nsew")
+        self.story_box.grid(row=1, column=0, sticky="nsew")
 
         self.stats_frame = ctk.CTkFrame(self, corner_radius=12, border_width=1)
         self.stats_frame.grid(row=1, column=1, padx=(10, 20), pady=10, sticky="nsew")
@@ -196,6 +272,68 @@ class GlobalStarApp(ctk.CTk):
         self.story_box.delete("1.0", "end")
         self.story_box.insert("1.0", text.strip())
         self.story_box.configure(state="disabled")
+
+    def clear_scene_image(self) -> None:
+        """隱藏場景插圖（避免 image=None 觸發 TclError）。"""
+        self._current_ctk_image = None
+        self.scene_image_label.grid_remove()
+
+    def _show_scene_image_label(self) -> None:
+        """顯示插圖區塊。"""
+        self.scene_image_label.grid(**self._scene_image_grid)
+
+    def set_scene_image(self, image_path: Optional[Path]) -> None:
+        """顯示場景插圖（依視窗比例縮放）；缺少 Pillow 時略過圖片但不阻斷流程。"""
+        if image_path is None or not image_path.is_file():
+            self.clear_scene_image()
+            return
+        try:
+            from PIL import Image
+
+            pil_img = Image.open(image_path).convert("RGB")
+            pil_img.thumbnail(SCENE_IMAGE_MAX_SIZE, Image.Resampling.LANCZOS)
+            self._current_ctk_image = ctk.CTkImage(
+                light_image=pil_img,
+                dark_image=pil_img,
+                size=pil_img.size,
+            )
+            self._show_scene_image_label()
+            self.scene_image_label.configure(
+                image=self._current_ctk_image,
+                text="",
+            )
+        except ImportError:
+            self.clear_scene_image()
+            if not getattr(self, "_pil_warned", False):
+                self._pil_warned = True
+                print(
+                    "提示：請安裝 Pillow 以顯示場景插圖：pip install Pillow",
+                    flush=True,
+                )
+        except OSError:
+            self.clear_scene_image()
+
+    def _ch1_narrative(self, scene_id: str, fallback: str = "") -> str:
+        """取得第一章某場景的旁白文字。"""
+        raw = self._ch1_stories.get(scene_id.zfill(3), fallback)
+        return format_ch1_narrative(raw, self.player) if raw else fallback
+
+    def show_visual_scene(
+        self,
+        scene_id: str,
+        title: str,
+        *,
+        comments: Optional[List[str]] = None,
+        fallback_story: str = "",
+        on_continue: Optional[Callable[[], None]] = None,
+    ) -> None:
+        """顯示帶插圖的場景，可選「繼續」按鈕。"""
+        self.set_scene_image(ch1_image_path(scene_id))
+        story = self._ch1_narrative(scene_id, fallback_story)
+        self.show_scene(title, story, comments, clear_image=False)
+        self.clear_choice_buttons()
+        if on_continue is not None:
+            self.add_choice("繼續", on_continue)
 
     def set_social(self, lines: List[str]) -> None:
         """更新社群反應區。"""
@@ -304,101 +442,143 @@ class GlobalStarApp(ctk.CTk):
         self.add_choice("藝術地下 Indie", pick_indie)
 
     def show_chapter1(self) -> None:
-        """第一章：第一首歌的代價。"""
-        self.show_scene(
-            "CHAPTER 1：第一首歌的代價",
-            "「順利與當地最大的經紀公司 Creative Artist Records 簽約後的三個月，"
-            "公司遲遲未聯絡你。某天夜裡，經紀人傳來訊息：『我們要決定你的第一首歌了，"
-            "這將會定義你是誰。』」",
-            ["（歌迷正在刷新頁面…）"],
+        """第一章：第一首歌的代價（插圖 + 對照旁白）。"""
+        self._show_ch1_intro("000")
+
+    def _show_ch1_intro(self, scene_id: str) -> None:
+        """第一章引言段落（000～002）。"""
+        title = "CHAPTER 1：第一首歌的代價"
+        comments = ["（歌迷正在刷新頁面…）"]
+        if scene_id == "001":
+            comments = ["@agent_creative：我們要決定你的第一首歌了。"]
+        elif scene_id == "002":
+            comments = ["@musicdaily：新人的出道曲會走哪條路？"]
+
+        if scene_id == "000":
+            nxt = lambda: self._show_ch1_intro("001")
+        elif scene_id == "001":
+            nxt = lambda: self._show_ch1_intro("002")
+        else:
+            nxt = None
+
+        self.show_visual_scene(
+            scene_id,
+            title,
+            comments=comments,
+            on_continue=nxt,
         )
-        self.clear_choice_buttons()
+        if scene_id == "002":
+            self.clear_choice_buttons()
+            self.add_choice("交給公司製作", self._ch1_route_a)
+            self.add_choice("自己創作（成功或失敗隨機）", self._ch1_route_b_start)
+            self.add_choice("與神秘製作人合作", self._ch1_route_c)
 
-        def ch1_a() -> None:
+    def _ch1_route_a(self) -> None:
+        """路線 A：交給公司製作（003～006）。"""
+        self._ch1_play_sequence(
+            ["003", "004", "005", "006"],
+            social_at={"005": [
+                "@musicdaily：這新人很穩欸",
+                "@popfan：感覺會紅",
+                "@critic_room：但有點……沒特色?",
+            ]},
+            on_finish=self._ch1_finish_route_a,
+        )
+
+    def _ch1_finish_route_a(self) -> None:
+        self.apply_effects({"fame": 8, "money": 5, "image": -3, "identity": -5})
+        self.player["route"] = "stable"
+        self.update_status_panel()
+        self.show_chapter2()
+
+    def _ch1_route_b_start(self) -> None:
+        """路線 B：自己創作（007 後隨機成功或失敗）。"""
+        self._ch1_b_success = random.random() < 0.5
+        scenes = ["007", "008", "009"] if self._ch1_b_success else ["007", "010"]
+        social: Dict[str, List[str]] = {}
+        if "008" in scenes:
+            social["008"] = [
+                "@stanaccount：這首歌是誰寫的?",
+                "@musicdaily：有點太真實了吧...",
+                "@critic_room：我直接哭出來",
+            ]
+        if "010" in scenes:
+            social["010"] = [
+                "@popwatch：這首歌好像沒什麼聲量。",
+                "@industrytalk：公司應該開始緊張了。",
+                "@smallfan：我其實覺得很好聽，只是大家還沒發現。",
+            ]
+        self._ch1_play_sequence(
+            scenes,
+            social_at=social,
+            on_finish=self._ch1_finish_route_b,
+        )
+
+    def _ch1_finish_route_b(self) -> None:
+        if getattr(self, "_ch1_b_success", False):
             self.apply_effects(
-                {"fame": 8, "money": 5, "image": -3, "identity": -5}
+                {"fame": 10, "image": 8, "identity": 5, "money": -3}
             )
-            self.player["route"] = "stable"
-            self.update_status_panel()
-            self.show_result_scene(
-                "CHAPTER 1 RESULT：公司打造的穩健首單",
-                "「單曲如期上架。A&R 團隊把副歌打磨得極其洗腦，MV 也在預算內準時完成。"
-                "經紀人在群組裡貼了一排貼圖慶祝：『這就是新人該有的第一步。』\n\n"
-                "你點開留言區，看見有人說你『很安全』。你還不確定那是不是讚美，但至少——"
-                "你真的被聽見了。」",
-                [
-                    "@musicdaily：這新人很穩欸，感覺會紅。",
-                    "@popfan：副歌也太洗腦了吧。",
-                    "@critic_room：好聽是好聽，但有點沒特色。",
-                ],
-                self.show_chapter2,
+            self.player["route"] = "rising"
+        else:
+            self.apply_effects(
+                {"fame": -5, "image": 3, "identity": 3, "money": -3}
             )
+            self.player["route"] = "hidden"
+        self.update_status_panel()
+        self.show_chapter2()
 
-        def ch1_b() -> None:
-            success = random.random() < 0.5
-            if success:
-                self.apply_effects(
-                    {"fame": 10, "image": 8, "identity": 5, "money": -3}
-                )
-                self.player["route"] = "rising"
-                self.update_status_panel()
-                self.show_result_scene(
-                    "CHAPTER 1 RESULT：自創曲意外成為話題",
-                    "「你把最真實的一段心事寫進副歌。原本以為只會在小眾圈轉發，"
-                    "沒想到幾天後，短影音平台開始出現各種翻唱與二創。"
-                    "經紀人打來電話的聲音裡藏不住驚喜：『你小子……真的把流量撞開了。』\n\n"
-                    "公司一邊開會一邊快速調整計畫，而你第一次感覺到：這條路，可能比你想像的更吵、更亮。」",
-                    [
-                        "@stanaccount：這首歌也太真實，我直接哭出來。",
-                        "@musicdaily：新人自作曲意外爆紅。",
-                        "@critic_room：粗糙，但有靈魂。",
-                    ],
-                    self.show_chapter2,
+    def _ch1_route_c(self) -> None:
+        """路線 C：神秘製作人（011～015）。"""
+        self._ch1_play_sequence(
+            ["011", "012", "013", "014", "015"],
+            social_at={"014": [
+                "@musicdaily：這很天才,我馬上就上癮了",
+                "@critic_room：我完全聽不懂",
+                "@rumorpage：這人是誰?",
+            ]},
+            on_finish=self._ch1_finish_route_c,
+        )
+
+    def _ch1_finish_route_c(self) -> None:
+        self.apply_effects(
+            {"fame": 10, "image": -3, "controversy": 8, "identity": -3}
+        )
+        self.player["hidden_producer"] = True
+        self.player["route"] = "hidden"
+        self.update_status_panel()
+        self.show_chapter2()
+
+    def _ch1_play_sequence(
+        self,
+        scene_ids: List[str],
+        *,
+        social_at: Optional[Dict[str, List[str]]] = None,
+        on_finish: Callable[[], None],
+    ) -> None:
+        """依序播放多個帶圖場景，最後執行 on_finish。"""
+        social_at = social_at or {}
+
+        def play_at(index: int) -> None:
+            sid = scene_ids[index]
+            comments = social_at.get(sid, ["（社群討論升溫中…）"])
+            if index + 1 < len(scene_ids):
+                nxt = lambda i=index + 1: play_at(i)
+                self.show_visual_scene(
+                    sid,
+                    "CHAPTER 1",
+                    comments=comments,
+                    on_continue=nxt,
                 )
             else:
-                self.apply_effects(
-                    {"fame": -5, "image": 3, "identity": 3, "money": -3}
-                )
-                self.player["route"] = "hidden"
-                self.update_status_panel()
-                self.show_result_scene(
-                    "CHAPTER 1 RESULT：沒能引爆的初試啼聲",
-                    "「數據不如預期。評論區很安靜，只有少數幾則留言替你說話。"
-                    "經紀人回覆得很客氣：『我們再調整方向。』但你聽得出來，語氣裡有壓力。\n\n"
-                    "你把手機放下，看著未完成的新 demo，第一次意識到：在這個產業裡，"
-                    "被看見與不被看見，可能只隔著一個晚上的演算法。」",
-                    [
-                        "@popwatch：這首歌好像沒什麼聲量。",
-                        "@industrytalk：公司應該開始緊張了。",
-                        "@smallfan：我其實覺得很好聽，只是大家還沒發現。",
-                    ],
-                    self.show_chapter2,
+                self.show_visual_scene(
+                    sid,
+                    "CHAPTER 1",
+                    comments=comments,
+                    on_continue=on_finish,
                 )
 
-        def ch1_c() -> None:
-            self.apply_effects(
-                {"fame": 10, "image": -3, "controversy": 8, "identity": -3}
-            )
-            self.player["hidden_producer"] = True
-            self.player["route"] = "hidden"
-            self.update_status_panel()
-            self.show_result_scene(
-                "CHAPTER 1 RESULT：神秘製作人的印記",
-                "「成品出爐那天，你盯著波形圖發呆。你明明唱的是自己，"
-                "卻總覺得有些地方『太剛好』——剛好刺中情緒、剛好適合循環、剛好讓人停不下來。"
-                "製作人只淡淡說：『觀眾不需要懂，他們只需要被接住。』\n\n"
-                "經紀人對外宣傳把功勞都歸給你，但你心裡知道：這首歌裡，還藏著另一雙手。」",
-                [
-                    "@musicdaily：這新人到底是誰？有點怪但會上癮。",
-                    "@critic_room：我完全聽不懂，但我想再聽一次。",
-                    "@rumorpage：聽說幕後製作人很神秘。",
-                ],
-                self.show_chapter2,
-            )
-
-        self.add_choice("交給公司製作", ch1_a)
-        self.add_choice("自己創作（成功或失敗隨機）", ch1_b)
-        self.add_choice("與神秘製作人合作", ch1_c)
+        play_at(0)
 
     def show_chapter2(self) -> None:
         """第二章：依 player['route'] 分流。"""
