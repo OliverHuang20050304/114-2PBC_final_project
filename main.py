@@ -20,6 +20,10 @@ CH1_BRANCH_DIRS: Dict[str, Path] = {
     "b": CH1_IMAGE_ROOT / "b.自己創作",
     "c": CH1_IMAGE_ROOT / "c.與神秘製作人合作",
 }
+CH2A_ROOT = PROJECT_ROOT / "image" / "Pop_Idol_Base" / "CH2" / "2A爆紅"
+CH2A_STORY_FILE = CH2A_ROOT / "圖片文本對照Idol_CH2A.txt"
+CH2A_EVENT1_DIR = CH2A_ROOT / "2A事件一"
+CH2A_EVENT2_DIR = CH2A_ROOT / "2A事件二"
 SCENE_IMAGE_MAX_SIZE = (680, 380)
 
 
@@ -55,8 +59,14 @@ def apply_deltas(player: Dict[str, Any], deltas: Dict[str, int]) -> None:
     clamp_player(player)
 
 
-def load_ch1_story_map(path: Path = CH1_STORY_FILE) -> Dict[str, str]:
-    """讀取第一章圖片編號與旁白對照表。"""
+def clean_story_text(text: str) -> str:
+    """清理對照表中的格式殘留。"""
+    cleaned = re.sub(r"^status_flavor\s*=\s*\"\"\"?\s*", "", text.strip())
+    return cleaned.replace('"""', "").strip()
+
+
+def load_story_map(path: Path) -> Dict[str, str]:
+    """讀取圖片編號與旁白對照表。"""
     if not path.is_file():
         return {}
     stories: Dict[str, str] = {}
@@ -65,22 +75,32 @@ def load_ch1_story_map(path: Path = CH1_STORY_FILE) -> Dict[str, str]:
     for line in path.read_text(encoding="utf-8").splitlines():
         if re.fullmatch(r"\d{3}", line.strip()):
             if current_id is not None:
-                stories[current_id] = "\n".join(buffer).strip()
+                stories[current_id] = clean_story_text("\n".join(buffer))
             current_id = line.strip()
             buffer = []
         elif current_id is not None:
             buffer.append(line)
     if current_id is not None:
-        stories[current_id] = "\n".join(buffer).strip()
+        stories[current_id] = clean_story_text("\n".join(buffer))
     return stories
 
 
-def format_ch1_narrative(text: str, player: Dict[str, Any]) -> str:
-    """替換第一章旁白中的城市、風格等佔位符。"""
+def load_ch1_story_map(path: Path = CH1_STORY_FILE) -> Dict[str, str]:
+    """讀取第一章圖片編號與旁白對照表。"""
+    return load_story_map(path)
+
+
+def format_narrative(text: str, player: Dict[str, Any]) -> str:
+    """替換旁白中的城市、風格等佔位符。"""
     city = str(player.get("city") or "這座城市")
     style = str(player.get("style") or "流行")
     formatted = text.replace("{city_name}", city).replace("{style}", style)
     return formatted.replace("**", "")
+
+
+def format_ch1_narrative(text: str, player: Dict[str, Any]) -> str:
+    """第一章旁白格式化（相容舊名稱）。"""
+    return format_narrative(text, player)
 
 
 def ch1_image_path(scene_id: str) -> Optional[Path]:
@@ -99,6 +119,21 @@ def ch1_image_path(scene_id: str) -> Optional[Path]:
     return None
 
 
+def ch2a_image_path(scene_id: str) -> Optional[Path]:
+    """依場景編號回傳第二章 A 路線 JPG 路徑。"""
+    sid = scene_id.zfill(3)
+    num = int(sid)
+    if 16 <= num <= 17:
+        path = CH2A_ROOT / f"{sid}.jpg"
+    elif 18 <= num <= 25:
+        path = CH2A_EVENT1_DIR / f"{sid}.jpg"
+    elif 26 <= num <= 31:
+        path = CH2A_EVENT2_DIR / f"{sid}.jpg"
+    else:
+        return None
+    return path if path.is_file() else None
+
+
 class GlobalStarApp(ctk.CTk):
     """主視窗與遊戲流程控制。"""
 
@@ -115,6 +150,7 @@ class GlobalStarApp(ctk.CTk):
         # 第二章 B 路線：第一張專輯選項 A/B 後的專輯類型（過場用）
         self._album_type: str = ""
         self._ch1_stories: Dict[str, str] = load_ch1_story_map()
+        self._ch2a_stories: Dict[str, str] = load_story_map(CH2A_STORY_FILE)
         self._current_ctk_image: Optional[ctk.CTkImage] = None
 
         self._build_layout()
@@ -313,10 +349,19 @@ class GlobalStarApp(ctk.CTk):
         except OSError:
             self.clear_scene_image()
 
+    def _narrative(
+        self,
+        story_map: Dict[str, str],
+        scene_id: str,
+        fallback: str = "",
+    ) -> str:
+        """從對照表取得並格式化旁白。"""
+        raw = story_map.get(scene_id.zfill(3), fallback)
+        return format_narrative(raw, self.player) if raw else fallback
+
     def _ch1_narrative(self, scene_id: str, fallback: str = "") -> str:
         """取得第一章某場景的旁白文字。"""
-        raw = self._ch1_stories.get(scene_id.zfill(3), fallback)
-        return format_ch1_narrative(raw, self.player) if raw else fallback
+        return self._narrative(self._ch1_stories, scene_id, fallback)
 
     def show_visual_scene(
         self,
@@ -326,10 +371,14 @@ class GlobalStarApp(ctk.CTk):
         comments: Optional[List[str]] = None,
         fallback_story: str = "",
         on_continue: Optional[Callable[[], None]] = None,
+        story_map: Optional[Dict[str, str]] = None,
+        image_resolver: Optional[Callable[[str], Optional[Path]]] = None,
     ) -> None:
         """顯示帶插圖的場景，可選「繼續」按鈕。"""
-        self.set_scene_image(ch1_image_path(scene_id))
-        story = self._ch1_narrative(scene_id, fallback_story)
+        resolver = image_resolver or ch1_image_path
+        smap = story_map or self._ch1_stories
+        self.set_scene_image(resolver(scene_id))
+        story = self._narrative(smap, scene_id, fallback_story)
         self.show_scene(title, story, comments, clear_image=False)
         self.clear_choice_buttons()
         if on_continue is not None:
@@ -549,12 +598,16 @@ class GlobalStarApp(ctk.CTk):
         self.update_status_panel()
         self.show_chapter2()
 
-    def _ch1_play_sequence(
+    def _play_scene_sequence(
         self,
         scene_ids: List[str],
+        title: str,
         *,
+        story_map: Dict[str, str],
+        image_resolver: Callable[[str], Optional[Path]],
         social_at: Optional[Dict[str, List[str]]] = None,
         on_finish: Callable[[], None],
+        final_continue: bool = True,
     ) -> None:
         """依序播放多個帶圖場景，最後執行 on_finish。"""
         social_at = social_at or {}
@@ -562,23 +615,55 @@ class GlobalStarApp(ctk.CTk):
         def play_at(index: int) -> None:
             sid = scene_ids[index]
             comments = social_at.get(sid, ["（社群討論升溫中…）"])
-            if index + 1 < len(scene_ids):
+            is_last = index + 1 >= len(scene_ids)
+            if not is_last:
                 nxt = lambda i=index + 1: play_at(i)
                 self.show_visual_scene(
                     sid,
-                    "CHAPTER 1",
+                    title,
                     comments=comments,
                     on_continue=nxt,
+                    story_map=story_map,
+                    image_resolver=image_resolver,
+                )
+            elif final_continue:
+                self.show_visual_scene(
+                    sid,
+                    title,
+                    comments=comments,
+                    on_continue=on_finish,
+                    story_map=story_map,
+                    image_resolver=image_resolver,
                 )
             else:
                 self.show_visual_scene(
                     sid,
-                    "CHAPTER 1",
+                    title,
                     comments=comments,
-                    on_continue=on_finish,
+                    on_continue=None,
+                    story_map=story_map,
+                    image_resolver=image_resolver,
                 )
+                on_finish()
 
         play_at(0)
+
+    def _ch1_play_sequence(
+        self,
+        scene_ids: List[str],
+        *,
+        social_at: Optional[Dict[str, List[str]]] = None,
+        on_finish: Callable[[], None],
+    ) -> None:
+        """第一章：依序播放帶圖場景。"""
+        self._play_scene_sequence(
+            scene_ids,
+            "CHAPTER 1",
+            story_map=self._ch1_stories,
+            image_resolver=ch1_image_path,
+            social_at=social_at,
+            on_finish=on_finish,
+        )
 
     def show_chapter2(self) -> None:
         """第二章：依 player['route'] 分流。"""
@@ -595,134 +680,165 @@ class GlobalStarApp(ctk.CTk):
 
     # ----- Chapter 2A：爆紅路線 -----
 
-    def _show_ch2a_tour(self) -> None:
-        story = (
-            "「發行單曲後，你的名字幾乎無處不在。推薦頁、短影片、排行榜——你是演算法寵兒，"
-            "也是年度最受矚目的新人。有人開始模仿你，有人開始討論你的過去，也有人開始預言你什麼時候會掉下來。\n\n"
-            "Creative Artist Records 為你爭取到許多表演機會。經紀人語重心長地說："
-            "『流量可以讓人認識你，但舞台才會讓人留下來。』\n\n"
-            "你看著行程表，城市一個接一個，掌聲與不確定性同時向你靠近。你要怎麼安排第一次巡演？」"
+    def _ch2a_play(
+        self,
+        scene_ids: List[str],
+        title: str,
+        *,
+        social_at: Optional[Dict[str, List[str]]] = None,
+        on_finish: Callable[[], None],
+        final_continue: bool = True,
+    ) -> None:
+        """第二章 A：依序播放帶圖場景。"""
+        self._play_scene_sequence(
+            scene_ids,
+            title,
+            story_map=self._ch2a_stories,
+            image_resolver=ch2a_image_path,
+            social_at=social_at,
+            on_finish=on_finish,
+            final_continue=final_continue,
         )
-        self.show_scene("CHAPTER 2A：爆紅路線 — 首次巡演", story, ["（巡演話題發燒中…）"])
-        self.clear_choice_buttons()
 
-        def pick_high() -> None:
-            self.apply_effects(
-                {
-                    "fame": 12,
-                    "money": 8,
-                    "health": -15,
-                    "controversy": 5,
-                    "identity": -3,
-                }
+    def _show_ch2a_tour(self) -> None:
+        """第二章 A：爆紅路線開場（016～018）與巡演抉擇。"""
+        title = "CHAPTER 2A：爆紅路線 — 首次巡演"
+
+        def show_tour_choice() -> None:
+            self.show_visual_scene(
+                "018",
+                title,
+                comments=["@musicdaily：現場表演才是藝人的靈魂。"],
+                story_map=self._ch2a_stories,
+                image_resolver=ch2a_image_path,
             )
-            self.update_status_panel()
-            self.show_result_scene(
-                "CHAPTER 2 RESULT：高強度巡演的代價",
-                "「你把行程塞滿，每一站都拚盡全力。票房數字讓公司笑得很開心，"
-                "但經紀人也忍不住在後台提醒你：『你眼底的黑眼圈快比舞台燈還亮。』\n\n"
-                "你點頭，心裡卻清楚——你正在用身體換取存在感。」",
-                [
-                    "@musicdaily：這新人也太拼了吧，幾乎每週都有演出。",
-                    "@tourfan：現場真的有感染力，感覺會越來越紅。",
-                    "@popwatch：他是不是根本沒睡？公司也太狠。",
+            self.clear_choice_buttons()
+            self.add_choice("高強度巡演", self._ch2a_pick_high)
+            self.add_choice("精緻小型巡演", self._ch2a_pick_small)
+
+        self._ch2a_play(
+            ["016", "017"],
+            title,
+            social_at={
+                "016": ["（巡演話題發燒中…）"],
+                "017": ["@popwatch：他什麼時候會掉下來？"],
+            },
+            on_finish=show_tour_choice,
+        )
+
+    def _ch2a_pick_high(self) -> None:
+        self.apply_effects(
+            {"fame": 12, "money": 8, "health": -15, "controversy": 5, "identity": -3}
+        )
+        self.update_status_panel()
+        self._ch2a_play(
+            ["019", "020", "021", "022", "023"],
+            "CHAPTER 2A",
+            social_at={
+                "021": [
+                    "@tourfan：他是不是根本沒睡?",
+                    "@popwatch：這行程也太地獄",
                 ],
-                self._show_ch2a_crisis,
-            )
-
-        def pick_small() -> None:
-            self.apply_effects(
-                {
-                    "fame": 5,
-                    "image": 10,
-                    "health": -5,
-                    "identity": 5,
-                    "money": 3,
-                }
-            )
-            self.update_status_panel()
-            self.show_result_scene(
-                "CHAPTER 2 RESULT：精緻巡演的口碑累積",
-                "「你刻意把場次變少，卻把每一場的細節拉滿。燈光、編曲、走位都一再調整。"
-                "經紀人一邊看報表一邊嘀咕曝光量，卻也不得不承認：『至少沒人說你敷衍。』\n\n"
-                "你走出場館，夜風很涼，心裡卻很穩。」",
-                [
-                    "@critic_room：他的 live 比錄音室版本更有生命力。",
-                    "@indiefan：這不是普通新人，舞台設計很有想法。",
-                    "@industrytalk：曝光少了一點，但質感很高。",
+                "022": ["@haterzone：現場翻車?"],
+                "023": [
+                    "@stanaccount：應該只是累了?",
+                    "@critic_room：這經紀公司也是想錢想瘋了",
                 ],
-                self._show_ch2a_crisis,
-            )
+            },
+            on_finish=self._show_ch2a_crisis,
+        )
 
-        self.add_choice("高強度巡演", pick_high)
-        self.add_choice("精緻小型巡演", pick_small)
+    def _ch2a_pick_small(self) -> None:
+        self.apply_effects(
+            {"fame": 5, "image": 10, "health": -5, "identity": 5, "money": 3}
+        )
+        self.update_status_panel()
+        self._ch2a_play(
+            ["024", "025"],
+            "CHAPTER 2A",
+            social_at={
+                "024": [
+                    "@critic_room：他的live比錄音還強",
+                    "@indiefan：完全不是流水線藝人",
+                ],
+                "025": ["@industrytalk：怎麼都不跑場?感覺沒什麼野心?"],
+            },
+            on_finish=self._show_ch2a_crisis,
+        )
 
     def _show_ch2a_crisis(self) -> None:
-        story = (
-            "「今晚你參與了一場晚會。訪談中，主持人問你：『你覺得現在的音樂圈，最難的是什麼？』\n\n"
-            "你停了一秒，回答：『有時候大家太在意表面工夫，反而失去了本質。』\n\n"
-            "影片釋出後，輿論迅速發酵。有人說你真誠，也有人說你剛紅就開始高傲。第一次公關危機來了。」"
+        """第二章 A：公關危機（026～028）與危機處置抉擇。"""
+        title = "CHAPTER 2A：第一次公關危機"
+
+        def show_crisis_choice() -> None:
+            self.clear_choice_buttons()
+            self.add_choice(
+                "承認表達不夠好，自己發文道歉", self._ch2a_pick_apology
+            )
+            self.add_choice("發正式聲明，否認指控", self._ch2a_pick_statement)
+            self.add_choice("不回應，等待風波過去", self._ch2a_pick_silent)
+
+        self._ch2a_play(
+            ["026", "027", "028"],
+            title,
+            social_at={
+                "028": [
+                    "@haterzone：他是在說粉絲嗎?",
+                    "@popwatch：剛紅就這樣?",
+                    "@rumorpage：從大牌經紀公司出來的人講這種話好諷刺",
+                ],
+            },
+            on_finish=show_crisis_choice,
+            final_continue=False,
         )
-        self.show_scene("CHAPTER 2A：第一次公關危機", story, ["（留言區兩極化…）"])
-        self.clear_choice_buttons()
 
-        def pick_apology() -> None:
-            self.apply_effects(
-                {"image": 8, "controversy": -5, "identity": 3, "fame": 3}
-            )
-            self.update_status_panel()
-            self.show_result_scene(
-                "CHAPTER 2 RESULT：道歉之後的溫度",
-                "「你選擇先把姿態放低。長文發出去後，留言區慢慢出現『至少很真誠』的聲音。"
-                "經紀人鬆了一口氣：『先止血，後面我們再談作品。』\n\n"
-                "你知道危機沒有完全消失，但至少——你拿回了一點敘事權。」",
-                [
-                    "@stanaccount：這個道歉蠻真誠的欸。",
-                    "@musicdaily：新人危機處理得不錯。",
-                    "@haterzone：現在才道歉也太晚。",
+    def _ch2a_pick_apology(self) -> None:
+        self.apply_effects({"image": 8, "controversy": -5, "identity": 3, "fame": 3})
+        self.update_status_panel()
+        self._ch2a_play(
+            ["029"],
+            "CHAPTER 2A",
+            social_at={
+                "029": [
+                    "@stanaccount：他說的本來就是實話",
+                    "@musicdaily：這種反應反而有點可愛",
+                    "@critic_room：很真誠的道歉",
                 ],
-                self.show_chapter3,
-            )
+            },
+            on_finish=self.show_chapter3,
+        )
 
-        def pick_statement() -> None:
-            self.apply_effects(
-                {"image": -5, "controversy": 8, "fame": 5, "identity": -3}
-            )
-            self.update_status_panel()
-            self.show_result_scene(
-                "CHAPTER 2 RESULT：聲明與輿論的拉鋸",
-                "「公司替你發出措辭嚴謹的聲明。媒體標題變得更聳動，黑粉與粉絲在線上對撞。"
-                "經紀人拍拍你的肩：『話題也是資產。』\n\n"
-                "你看著手機上跳動的通知，突然有種說不清的疲憊。」",
-                [
-                    "@popwatch：哇，公司開始硬起來了。",
-                    "@critic_room：其實原本也沒那麼嚴重吧？",
-                    "@haterzone：又是典型公關稿。",
+    def _ch2a_pick_statement(self) -> None:
+        self.apply_effects({"image": -5, "controversy": 8, "fame": 5, "identity": -3})
+        self.update_status_panel()
+        self._ch2a_play(
+            ["030"],
+            "CHAPTER 2A",
+            social_at={
+                "030": [
+                    "@haterzone：想賺市場的錢又瞧不起主流聽眾",
+                    "@popwatch：不是,這也沒什麼吧",
+                    "@critic_room：酸民們真嗜血",
                 ],
-                self.show_chapter3,
-            )
+            },
+            on_finish=self.show_chapter3,
+        )
 
-        def pick_silent() -> None:
-            self.apply_effects(
-                {"image": -8, "controversy": 5, "health": -5, "fame": 3}
-            )
-            self.update_status_panel()
-            self.show_result_scene(
-                "CHAPTER 2 RESULT：沉默的代價",
-                "「你什麼都沒說。世界卻把你的沉默解讀成一百種版本。"
-                "經紀人急得跳腳，卻也拿你沒辦法：『你至少回個表情符號也好啊。』\n\n"
-                "你把螢幕關掉，發現自己比想像中更累。」",
-                [
-                    "@rumorpage：他怎麼還沒回應？",
-                    "@haterzone：冷處理是不是心虛？",
-                    "@stanaccount：希望他只是太累了。",
+    def _ch2a_pick_silent(self) -> None:
+        self.apply_effects({"image": -8, "controversy": 5, "health": -5, "fame": 3})
+        self.update_status_panel()
+        self._ch2a_play(
+            ["031"],
+            "CHAPTER 2A",
+            social_at={
+                "031": [
+                    "@rumorpage：他怎麼還沒回應?",
+                    "@haterzone：公司應該想息事寧人吧",
+                    "@industrytalk：他應該是因為太難搞被冷凍了",
                 ],
-                self.show_chapter3,
-            )
-
-        self.add_choice("承認表達不夠好，自己發文道歉", pick_apology)
-        self.add_choice("發正式聲明，否認指控", pick_statement)
-        self.add_choice("不回應，等待風波過去", pick_silent)
+            },
+            on_finish=self.show_chapter3,
+        )
 
     # ----- Chapter 2B：穩定成長線 -----
 
