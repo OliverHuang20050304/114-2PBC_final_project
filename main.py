@@ -24,6 +24,10 @@ CH2A_ROOT = PROJECT_ROOT / "image" / "Pop_Idol_Base" / "CH2" / "2A爆紅"
 CH2A_STORY_FILE = CH2A_ROOT / "圖片文本對照Idol_CH2A.txt"
 CH2A_EVENT1_DIR = CH2A_ROOT / "2A事件一"
 CH2A_EVENT2_DIR = CH2A_ROOT / "2A事件二"
+CH2B_ROOT = PROJECT_ROOT / "image" / "Pop_Idol_Base" / "CH2" / "2B穩定成長"
+CH2B_STORY_FILE = CH2B_ROOT / "圖片文本對照Idol_CH2B.txt"
+CH2B_EVENT1_DIR = CH2B_ROOT / "2B事件一"
+CH2B_EVENT2_DIR = CH2B_ROOT / "2B事件二"
 SCENE_IMAGE_MAX_SIZE = (680, 380)
 
 
@@ -134,6 +138,21 @@ def ch2a_image_path(scene_id: str) -> Optional[Path]:
     return path if path.is_file() else None
 
 
+def ch2b_image_path(scene_id: str) -> Optional[Path]:
+    """依場景編號回傳第二章 B 路線 JPG 路徑。"""
+    sid = scene_id.zfill(3)
+    num = int(sid)
+    if num == 32:
+        path = CH2B_ROOT / f"{sid}.jpg"
+    elif 33 <= num <= 43:
+        path = CH2B_EVENT1_DIR / f"{sid}.jpg"
+    elif 44 <= num <= 45:
+        path = CH2B_EVENT2_DIR / f"{sid}.jpg"
+    else:
+        return None
+    return path if path.is_file() else None
+
+
 class GlobalStarApp(ctk.CTk):
     """主視窗與遊戲流程控制。"""
 
@@ -151,6 +170,7 @@ class GlobalStarApp(ctk.CTk):
         self._album_type: str = ""
         self._ch1_stories: Dict[str, str] = load_ch1_story_map()
         self._ch2a_stories: Dict[str, str] = load_story_map(CH2A_STORY_FILE)
+        self._ch2b_stories: Dict[str, str] = load_story_map(CH2B_STORY_FILE)
         self._current_ctk_image: Optional[ctk.CTkImage] = None
 
         self._build_layout()
@@ -842,203 +862,207 @@ class GlobalStarApp(ctk.CTk):
 
     # ----- Chapter 2B：穩定成長線 -----
 
-    def _show_ch2b_album(self) -> None:
-        story = (
-            "「你的名字開始出現在某些地方。偶爾有人在留言區提到你，也有人說："
-            "『他的新歌還不錯，期待未來發展。』\n\n"
-            "你知道自己正在往上，但也隨時可能被取代。\n\n"
-            "幾天後，你被叫進公司。經紀人把平板推到你面前：『打鐵趁熱，單曲之後就是專輯。"
-            "專輯會定義你的風格，也會決定你是不是只是 one-hit wonder。』\n\n"
-            "你要怎麼做這張專輯？」"
+    def _ch2b_play(
+        self,
+        scene_ids: List[str],
+        title: str,
+        *,
+        social_at: Optional[Dict[str, List[str]]] = None,
+        on_finish: Callable[[], None],
+        final_continue: bool = True,
+    ) -> None:
+        """第二章 B：依序播放帶圖場景。"""
+        self._play_scene_sequence(
+            scene_ids,
+            title,
+            story_map=self._ch2b_stories,
+            image_resolver=ch2b_image_path,
+            social_at=social_at,
+            on_finish=on_finish,
+            final_continue=final_continue,
         )
-        self.show_scene("CHAPTER 2B：穩定成長線 — 第一張專輯", story, ["（樂評與粉絲都在等專輯方向…）"])
-        self.clear_choice_buttons()
 
-        def pick_commercial() -> None:
-            self.apply_effects(
-                {"fame": 12, "money": 12, "image": -3, "identity": -8}
+    def _show_ch2b_album(self) -> None:
+        """第二章 B：開場（032～034）與專輯方向抉擇。"""
+        title = "CHAPTER 2B：穩定成長線 — 第一張專輯"
+
+        def show_album_choice() -> None:
+            self.show_visual_scene(
+                "034",
+                title,
+                comments=["（樂評與粉絲都在等專輯方向…）"],
+                story_map=self._ch2b_stories,
+                image_resolver=ch2b_image_path,
             )
-            self._album_type = "commercial"
-            self.update_status_panel()
-            self.show_result_scene(
-                "CHAPTER 2 RESULT：專輯發行結果：商業爆發",
-                "「專輯上線後，首頁推薦、短影音背景音樂、排行榜幾乎都被你的名字佔據。"
-                "Creative Artist Records 對結果非常滿意，商業合作也開始增加。\n\n"
-                "但同時，有些樂評指出，這張專輯雖然完整，卻少了一點屬於你的危險感。"
-                "你第一次感覺到：成功不一定代表自由。」",
-                [
-                    "@popfan：這張真的每首都能當主打。",
-                    "@musicdaily：新生代商業流行代表出現了。",
-                    "@critic_room：完成度很高，但也有點太安全。",
+            self.clear_choice_buttons()
+            self.add_choice(
+                "全權交由 A&R 打造商業專輯", self._ch2b_pick_commercial
+            )
+            self.add_choice("製作個人概念專輯", self._ch2b_pick_concept)
+            self.add_choice("拒絕公司干涉，自己摸索", self._ch2b_pick_reject)
+
+        self._ch2b_play(
+            ["032", "033"],
+            title,
+            social_at={
+                "032": ["（你的名字開始被更多人看見…）"],
+                "033": ["@popfan：他的新歌還不錯，期待未來發展。"],
+            },
+            on_finish=show_album_choice,
+        )
+
+    def _ch2b_pick_commercial(self) -> None:
+        self.apply_effects({"fame": 12, "money": 12, "image": -3, "identity": -8})
+        self._album_type = "commercial"
+        self.update_status_panel()
+        self._ch2b_play(
+            ["035", "036"],
+            "CHAPTER 2B",
+            social_at={
+                "036": [
+                    "@popfan：這張怎麼每首都可以當主打",
+                    "@musicdaily：我原本只想聽一首結果整張播完",
+                    "@critic_room：今年的聲音",
                 ],
-                self._show_ch2b_transition,
-            )
+            },
+            on_finish=self._show_ch2b_transition,
+        )
 
-        def pick_concept() -> None:
-            self.apply_effects({"image": 12, "identity": 8, "fame": 5, "money": -3})
-            self._album_type = "concept"
-            self.update_status_panel()
-            self.show_result_scene(
-                "CHAPTER 2 RESULT：專輯發行結果：慢熱的深度",
-                "「專輯上架的第一週，討論聲量不算爆，但樂評與核心聽眾開始一篇篇拆解你的概念線。"
-                "經紀人看著曲線皺眉：『我們需要更多入口。』卻也不得不承認：『這張有靈魂。』\n\n"
-                "你在深夜反覆聽完整張專輯，心裡知道——你終於把『自己』放進去了。」",
-                [
-                    "@critic_room：這張一開始不抓耳，但越聽越有東西。",
-                    "@indiefan：終於有新人願意認真做概念專輯。",
-                    "@popwatch：聲量好像沒有預期高。",
+    def _ch2b_pick_concept(self) -> None:
+        self.apply_effects({"image": 12, "identity": 8, "fame": 5, "money": -3})
+        self._album_type = "concept"
+        self.update_status_panel()
+        self._ch2b_play(
+            ["037", "038", "039", "040"],
+            "CHAPTER 2B",
+            social_at={
+                "039": ["@popwatch：專輯上線第一天，好安靜。"],
+                "040": [
+                    "@critic_room：這張其實很好聽欸",
+                    "@indiefan：我一開始沒懂,現在回去整張重聽",
+                    "@musicdaily：怎麼越晚越紅?",
                 ],
-                self._show_ch2b_transition,
-            )
+            },
+            on_finish=self._show_ch2b_transition,
+        )
 
-        def pick_reject() -> None:
-            self.apply_effects(
-                {
-                    "image": 8,
-                    "identity": 12,
-                    "money": -8,
-                    "fame": -3,
-                    "controversy": 5,
-                }
-            )
-            self._album_type = ""
-            self.update_status_panel()
-            self.show_result_scene(
-                "CHAPTER 2 RESULT：專輯之路：選擇獨行",
-                "「你拒絕了公司替你寫好的『安全答案』。會議室安靜得可怕，"
-                "經紀人收起平板，語氣變冷：『你知道這代表什麼嗎？』\n\n"
-                "你點頭。你知道——接下來的每一步，都要自己負責。」",
-                [
+    def _ch2b_pick_reject(self) -> None:
+        self.apply_effects(
+            {"image": 8, "identity": 12, "money": -8, "fame": -3, "controversy": 5}
+        )
+        self._album_type = ""
+        self.update_status_panel()
+        self._ch2b_play(
+            ["041", "042", "043"],
+            "CHAPTER 2B",
+            social_at={
+                "041": [
                     "@industrytalk：聽說他跟公司有點僵。",
-                    "@indiefan：至少他沒有變成公司產品。",
                     "@popwatch：這樣真的撐得下去嗎？",
                 ],
-                self._show_ch2b_reject_bridge,
-            )
-
-        self.add_choice("全權交由 A&R 打造商業專輯", pick_commercial)
-        self.add_choice("製作個人概念專輯", pick_concept)
-        self.add_choice("拒絕公司干涉，自己摸索", pick_reject)
-
-    def _show_ch2b_reject_bridge(self) -> None:
-        """穩定線選「拒絕公司」後的第二章收束，再進入第三章（與 A/B 路線節奏對齊）。"""
-        story = (
-            "「你選擇自己摸索，會議室裡的氣氛變得緊繃。經紀人沒有多說什麼，只在離開前留下一句："
-            "『那就用作品說話吧。』\n\n"
-            "你知道接下來的每一步，都會更孤獨，也更接近真正的自己。」"
+                "043": [
+                    "@indiefan：至少他沒有變成公司產品。",
+                    "@critic_room：評價兩極,但很像他自己。",
+                ],
+            },
+            on_finish=self.show_chapter3,
         )
-        self.show_scene(
-            "CHAPTER 2B：與公司之間",
-            story,
-            ["（業界都在猜你還能撐多久…）"],
-        )
-        self.clear_choice_buttons()
-        self.add_choice("繼續", self.show_chapter3)
 
     def _show_ch2b_transition(self) -> None:
+        """第二章 B：專輯後續抉擇（044 商業線 / 045 概念線）。"""
         at = self._album_type
         if at == "commercial":
             title = "CHAPTER 2B：成功之後的選擇"
-            story = (
-                "「首張專輯大成功，你變成『大家都聽過的人』。但會議室裡，經紀人的表情卻很嚴肅："
-                "『你現在很成功，但有一個問題。你太容易被預測了，一個不小心就會被替代。』\n\n"
-                "你要怎麼走下一步？」"
-            )
+            scene_id = "044"
         elif at == "concept":
             title = "CHAPTER 2B：藝術與市場的拉扯"
-            story = (
-                "「首張專輯發布後，許多人說你的作品很特別。不過對公司來說，成長太慢、商業轉換率太低。\n\n"
-                "經紀人說：『你也要考慮長期發展。公司不會永遠投資在報酬率低的藝術家身上。』\n\n"
-                "你要怎麼回應？」"
-            )
+            scene_id = "045"
         else:
             self.show_chapter3()
             return
 
-        self.show_scene(title, story, ["（公司與你之間氣氛微妙…）"])
-        self.clear_choice_buttons()
-
-        if at == "commercial":
-
-            def pick_safe() -> None:
-                self.apply_effects(
-                    {"fame": 10, "money": 10, "image": -3, "identity": -8}
+        def show_transition_choice() -> None:
+            self.clear_choice_buttons()
+            if at == "commercial":
+                self.add_choice("延續商業路線，穩定賺錢", self._ch2b_pick_safe)
+                self.add_choice(
+                    "嘗試更個人、更小眾的風格", self._ch2b_pick_art
                 )
-                self.update_status_panel()
-                self.show_result_scene(
-                    "CHAPTER 2 RESULT：轉型之後｜商業加碼",
-                    "「你選擇把路走得更『可預測』。公司立刻排進更多代言與綜藝窗口，"
-                    "會議室的白板上寫滿下一步 KPI。經紀人笑得很真：『這才是長紅的打法。』\n\n"
-                    "你點頭，卻在深夜練歌時突然恍神——你還記得最初想唱的那句話嗎？」",
-                    [
-                        "@popfan：他真的很懂市場。",
-                        "@musicdaily：商業成績太強了。",
-                        "@critic_room：安全，但缺少驚喜。",
-                    ],
-                    self.show_chapter3,
-                )
+            else:
+                self.add_choice("保持現在風格，慢慢累積", self._ch2b_pick_slow)
+                self.add_choice("改得更清楚、更市場化", self._ch2b_pick_market)
 
-            def pick_art() -> None:
-                self.apply_effects(
-                    {"image": 10, "identity": 8, "fame": 3, "money": -3}
-                )
-                self.update_status_panel()
-                self.show_result_scene(
-                    "CHAPTER 2 RESULT：轉型之後｜往內走",
-                    "「你把下一張作品的母帶鎖進私人資料夾，只給少數信得過的人聽。"
-                    "經紀人嘆氣卻也點頭：『好吧，至少你還願意跟我們溝通。』\n\n"
-                    "你感覺到風向在變——慢，但往你想要的方向。」",
-                    [
-                        "@critic_room：這個轉向很聰明。",
-                        "@indiefan：終於看到他自己的東西了。",
-                        "@popfan：我有點懷念以前比較好懂的歌。",
-                    ],
-                    self.show_chapter3,
-                )
+        self._ch2b_play(
+            [scene_id],
+            title,
+            social_at={scene_id: ["（公司與你之間氣氛微妙…）"]},
+            on_finish=show_transition_choice,
+            final_continue=False,
+        )
 
-            self.add_choice("延續商業路線，穩定賺錢", pick_safe)
-            self.add_choice("嘗試更個人、更小眾的風格", pick_art)
+    def _ch2b_pick_safe(self) -> None:
+        self.apply_effects({"fame": 10, "money": 10, "image": -3, "identity": -8})
+        self.update_status_panel()
+        self.show_result_scene(
+            "CHAPTER 2 RESULT：轉型之後｜商業加碼",
+            "「你選擇把路走得更『可預測』。公司立刻排進更多代言與綜藝窗口，"
+            "會議室的白板上寫滿下一步 KPI。經紀人笑得很真：『這才是長紅的打法。』\n\n"
+            "你點頭，卻在深夜練歌時突然恍神——你還記得最初想唱的那句話嗎？」",
+            [
+                "@popfan：他真的很懂市場。",
+                "@musicdaily：商業成績太強了。",
+                "@critic_room：安全，但缺少驚喜。",
+            ],
+            self.show_chapter3,
+        )
 
-        else:
+    def _ch2b_pick_art(self) -> None:
+        self.apply_effects({"image": 10, "identity": 8, "fame": 3, "money": -3})
+        self.update_status_panel()
+        self.show_result_scene(
+            "CHAPTER 2 RESULT：轉型之後｜往內走",
+            "「你把下一張作品的母帶鎖進私人資料夾，只給少數信得過的人聽。"
+            "經紀人嘆氣卻也點頭：『好吧，至少你還願意跟我們溝通。』\n\n"
+            "你感覺到風向在變——慢，但往你想要的方向。」",
+            [
+                "@critic_room：這個轉向很聰明。",
+                "@indiefan：終於看到他自己的東西了。",
+                "@popfan：我有點懷念以前比較好懂的歌。",
+            ],
+            self.show_chapter3,
+        )
 
-            def pick_slow() -> None:
-                self.apply_effects(
-                    {"image": 10, "identity": 10, "fame": 3, "money": -3}
-                )
-                self.update_status_panel()
-                self.show_result_scene(
-                    "CHAPTER 2 RESULT：轉型之後｜慢火累積",
-                    "「你沒有為了榜單硬轉彎。公司嘴上抱怨，卻仍替你留了一條藝術行銷的窄路。"
-                    "經紀人把咖啡推到你面前：『你可以慢，但不能停。』\n\n"
-                    "你把那句話記下來，像記一句咒語。」",
-                    [
-                        "@critic_room：他可能不是最快紅的，但會紅很久。",
-                        "@indiefan：這才是藝術家的樣子。",
-                        "@industrytalk：商業面還是有疑慮。",
-                    ],
-                    self.show_chapter3,
-                )
+    def _ch2b_pick_slow(self) -> None:
+        self.apply_effects({"image": 10, "identity": 10, "fame": 3, "money": -3})
+        self.update_status_panel()
+        self.show_result_scene(
+            "CHAPTER 2 RESULT：轉型之後｜慢火累積",
+            "「你沒有為了榜單硬轉彎。公司嘴上抱怨，卻仍替你留了一條藝術行銷的窄路。"
+            "經紀人把咖啡推到你面前：『你可以慢，但不能停。』\n\n"
+            "你把那句話記下來，像記一句咒語。」",
+            [
+                "@critic_room：他可能不是最快紅的，但會紅很久。",
+                "@indiefan：這才是藝術家的樣子。",
+                "@industrytalk：商業面還是有疑慮。",
+            ],
+            self.show_chapter3,
+        )
 
-            def pick_market() -> None:
-                self.apply_effects(
-                    {"fame": 10, "money": 8, "image": -3, "identity": -5}
-                )
-                self.update_status_panel()
-                self.show_result_scene(
-                    "CHAPTER 2 RESULT：轉型之後｜更市場的入口",
-                    "「你把旋律線拉直、把副歌變得更『一聽就懂』。數據很快給出正向回饋，"
-                    "經紀人拍桌：『對嘛，這才是能養活團隊的作品。』\n\n"
-                    "你笑了笑，心裡卻知道：你交換了一些神秘，換來一些確定。」",
-                    [
-                        "@popfan：這次好聽很多欸。",
-                        "@critic_room：變好入口了，但也少了一點神秘感。",
-                        "@industrytalk：這是比較成熟的選擇。",
-                    ],
-                    self.show_chapter3,
-                )
-
-            self.add_choice("保持現在風格，慢慢累積", pick_slow)
-            self.add_choice("改得更清楚、更市場化", pick_market)
+    def _ch2b_pick_market(self) -> None:
+        self.apply_effects({"fame": 10, "money": 8, "image": -3, "identity": -5})
+        self.update_status_panel()
+        self.show_result_scene(
+            "CHAPTER 2 RESULT：轉型之後｜更市場的入口",
+            "「你把旋律線拉直、把副歌變得更『一聽就懂』。數據很快給出正向回饋，"
+            "經紀人拍桌：『對嘛，這才是能養活團隊的作品。』\n\n"
+            "你笑了笑，心裡卻知道：你交換了一些神秘，換來一些確定。」",
+            [
+                "@popfan：這次好聽很多欸。",
+                "@critic_room：變好入口了，但也少了一點神秘感。",
+                "@industrytalk：這是比較成熟的選擇。",
+            ],
+            self.show_chapter3,
+        )
 
     # ----- Chapter 2C：地下黑暗線 -----
 
