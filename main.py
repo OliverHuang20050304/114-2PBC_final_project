@@ -516,7 +516,8 @@ class GlobalStarApp(ctk.CTk):
 
     def _show_ch1_intro(self, scene_id: str) -> None:
         """第一章引言段落（000～002）。"""
-        title = "CHAPTER 1：第一首歌的代價"
+        title =( "出道曲對一位藝人來說至關重要，它奠定眾人對你的第一印象。Creative Artist Recordss有許多老牌的製作人能夠為你提供你想要的歌曲。
+        "不過，在這個快速變動的網路世代，能夠真實傳遞自我的自作曲或許更能抓人眼球。與此同時，先前在聚會上結識的神祕製作人也主動向你地出橄欖枝，你希望你的第一首歌是：")
         comments = ["（歌迷正在刷新頁面…）"]
         if scene_id == "001":
             comments = ["@agent_creative：我們要決定你的第一首歌了。"]
