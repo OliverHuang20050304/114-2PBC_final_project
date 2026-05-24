@@ -92,22 +92,26 @@ class GlobalStarApp(
         """重新開始遊戲。"""
         self.show_start()
 
+    def restart_game(self) -> None:
+        """重新開始遊戲。"""
+        self.show_start()
+
     def show_cover(self) -> None:
-    """開場封面畫面。"""
-    self.clear_choice_buttons()
-    self.update_social_reactions([""])
+        """開場封面畫面。"""
+        self.clear_choice_buttons()
+        self.update_social_reactions([""])
+        
+        cover_path = Path(__file__).resolve().parent.parent / "image" / "Pop_Idol_Base" / "封面圖.png"
+        self.set_scene_image(cover_path)
+        
+        self.show_scene(
+            "GLOBAL STAR：成名之路",
+            "一位普通家庭的新人，即將踏上成名之路。",
+            [""],
+            clear_image=False,
+        )
+        self.add_choice("▶  開始遊戲", self.show_start)
     
-    # 載入封面圖片（把 cover.png 換成你的檔名）
-    cover_path = PROJECT_ROOT / "封面圖.png"
-    self.set_scene_image(cover_path)
-    
-    self.show_scene(
-        "GLOBAL STAR：成名之路",
-        "一位普通家庭的新人，即將踏上成名之路。",
-        [""],
-        clear_image=False,
-    )
-    self.add_choice("▶  開始遊戲", self.show_start)
 
     def show_scene(
         self,
