@@ -57,7 +57,7 @@ class GlobalStarApp(
         self._current_ctk_image: Optional[ctk.CTkImage] = None
 
         self._build_layout()
-        self.show_start()
+        self.show_cover()
 
     def _new_player_reset(self) -> Dict[str, Any]:
         """重新開始時建立新玩家狀態。"""
@@ -91,6 +91,23 @@ class GlobalStarApp(
     def restart_game(self) -> None:
         """重新開始遊戲。"""
         self.show_start()
+
+    def show_cover(self) -> None:
+    """開場封面畫面。"""
+    self.clear_choice_buttons()
+    self.update_social_reactions([""])
+    
+    # 載入封面圖片（把 cover.png 換成你的檔名）
+    cover_path = PROJECT_ROOT / "封面圖.png"
+    self.set_scene_image(cover_path)
+    
+    self.show_scene(
+        "GLOBAL STAR：成名之路",
+        "一位普通家庭的新人，即將踏上成名之路。",
+        [""],
+        clear_image=False,
+    )
+    self.add_choice("▶  開始遊戲", self.show_start)
 
     def show_scene(
         self,
