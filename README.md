@@ -125,34 +125,49 @@ python main.py
 
 ```
 114-2PBC_final_project/
-├── main.py              # 主程式：GUI、遊戲流程、數值系統、結局判定
-├── requirements.txt     # customtkinter, Pillow
-├── README.md
-├── image/               # 美術與劇本文本資源
-│   ├── readme.txt
+├── main.py              # 程式進入點（python main.py）
+├── requirements.txt
+├── story/               # ★ 劇情文字（序章、選項結果、社群留言、結局文案）
+│   ├── prologue.py
+│   ├── ch1.py … ch3.py
+│   ├── ch2c.py
+│   └── endings.py
+├── game/                # 遊戲邏輯與 UI
+│   ├── app.py           # 主視窗 GlobalStarApp
+│   ├── paths.py         # 圖片與對照表路徑
+│   ├── player.py        # 玩家數值
+│   ├── story_io.py      # 讀取 .txt 對照表、{city_name} 替換
+│   ├── images.py        # 場景 ID → JPG 路徑
+│   └── chapters/        # 各章流程（Mixin）
+├── image/               # 美術與「帶圖場景」旁白對照表 .txt
 │   └── Pop_Idol_Base/
-│       ├── CH1/         # 第一章（引言 + 三路分支）
-│       ├── CH2/
-│       │   ├── 2A爆紅/
-│       │   └── 2B穩定成長/
-│       ├── 2C黑暗/      # 2C 素材（程式整合中）
-│       └── 結局/
-└── old/                 # 早期原型（CLI / Pygame / 純 Tk 等）
+│       ├── CH1/
+│       ├── CH2/2A爆紅/、2B穩定成長/
+│       └── …
+└── old/                 # 早期原型
 ```
 
-### 程式架構（`main.py`）
+### 修改劇情文字要改哪裡？
 
-- **`GlobalStarApp(ctk.CTk)`**：單一主視窗類別，負責介面配置與全流程控制
-- **玩家狀態 `player` 字典**：集中管理 city、style、六項數值、route、hidden_producer 等
-- **流程方法**：`show_start` → `show_city_selection` → `show_style_selection` → `show_chapter1` → `show_chapter2` → `show_chapter3` → `show_ending`
-- **視覺場景 API**：
+| 內容類型 | 編輯檔案 |
+|----------|----------|
+| 序章、第三章、2C、選項過場、社群留言、結局 | `story/*.py` |
+| 第一章／2A／2B **有插圖**的場景旁白 | `image/.../圖片文本對照*.txt` |
+| 第一章引言畫面上方的提問標題 | `story/ch1.py` 的 `CH1_INTRO_TITLE` |
+
+### 程式架構
+
+- **`GlobalStarApp`**（`game/app.py`）：介面 + 繼承各章 `Mixin` 控制流程
+- **`story/`**：純文字常數，與程式邏輯分離，方便劇本修改
+- **`game/chapters/`**：各章選項、數值變化、場景播放順序
+- **視覺場景 API**（`game/app.py`）：
   - `show_visual_scene()` — 單格插圖 + 旁白 + 可選「繼續」
-  - `_play_scene_sequence()` — 依序播放多格場景（第一章 / 2A / 2B 共用）
-  - `show_scene()` / `show_result_scene()` — 純文字場景（第三章、部分過場）
-- **資源載入**：
-  - `load_story_map()` — 解析 `圖片文本對照*.txt`（以三位數編號分段）
-  - `ch1_image_path()` / `ch2a_image_path()` / `ch2b_image_path()` — 依場景 ID 對應 JPG 路徑
-  - `format_narrative()` — 替換 `{city_name}`、`{style}` 等佔位符
+  - `_play_scene_sequence()` — 依序播放多格場景
+  - `show_scene()` / `show_result_scene()` — 純文字場景
+- **資源載入**（`game/story_io.py`、`game/images.py`）：
+  - `load_story_map()` — 解析 `圖片文本對照*.txt`
+  - `ch1_image_path()` 等 — 場景 ID 對應 JPG
+  - `format_narrative()` — 替換 `{city_name}`、`{style}`
 
 ### 介面配置
 
