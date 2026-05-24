@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from typing import TYPE_CHECKING
 
 from story import prologue as story
@@ -29,10 +31,12 @@ class PrologueMixin:
 
     def show_city_selection(self: GlobalStarApp) -> None:
         """序章：選擇發展城市。"""
+        self.set_scene_image(Path(__file__).resolve().parent.parent.parent / "image" / "Pop_Idol_Base" / "起點事件_城市.png")
         self.show_scene(
             story.PROLOGUE_CITY_TITLE,
             story.PROLOGUE_CITY_BODY,
             story.PROLOGUE_CITY_COMMENTS,
+            clear_image=False,  
         )
         self.clear_choice_buttons()
 
@@ -48,10 +52,12 @@ class PrologueMixin:
 
     def show_style_selection(self: GlobalStarApp) -> None:
         """序章：選擇出道風格。"""
+        self.set_scene_image(Path(__file__).resolve().parent.parent.parent / "image" / "Pop_Idol_Base" / "起點事件_風格.png")
         self.show_scene(
             story.PROLOGUE_STYLE_TITLE,
             story.PROLOGUE_STYLE_BODY,
             story.PROLOGUE_STYLE_COMMENTS,
+            clear_image=False,
         )
         self.clear_choice_buttons()
 
