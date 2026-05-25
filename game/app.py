@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 import customtkinter as ctk
+import pyglet
 
 from game.chapters.base import SceneSequenceMixin
 from game.chapters.ch1 import Chapter1Mixin
@@ -55,6 +56,15 @@ class GlobalStarApp(
         self._ch2a_stories: Dict[str, str] = load_story_map(CH2A_STORY_FILE)
         self._ch2b_stories: Dict[str, str] = load_story_map(CH2B_STORY_FILE)
         self._current_ctk_image: Optional[ctk.CTkImage] = None
+        self._bgm_player = pyglet.media.Player()
+        self._bgm_player.loop = True
+        bgm_path = Path(__file__).resolve().parent.parent /  "Bgm.mp3"
+        if bgm_path.is_file():
+            source = pyglet.media.load(str(bgm_path))
+            self._bgm_player.queue(source)
+            self._bgm_player.play()
+        else:
+            print(f"[BGM] 找不到音樂檔案：{bgm_path}")
 
         self._build_layout()
         self.show_cover()
