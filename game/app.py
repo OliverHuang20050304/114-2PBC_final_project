@@ -110,7 +110,7 @@ class GlobalStarApp(
             [""],
             clear_image=False,
         )
-        self.add_choice("▶  開始遊戲", self.show_start)
+        self.add_choice("開始遊戲", self.show_start)
     
 
     def show_scene(
@@ -397,3 +397,4 @@ def main() -> None:
     """程式進入點。"""
     app = GlobalStarApp()
     app.mainloop()
+    
