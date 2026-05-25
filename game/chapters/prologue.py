@@ -17,6 +17,7 @@ class PrologueMixin:
 
     def show_start(self: GlobalStarApp) -> None:
         """序章開始畫面。"""
+        self.set_scene_image(Path(__file__).resolve().parent.parent.parent / "image" / "Pop_Idol_Base" / "封面圖.png")   
         self.player = self._new_player_reset()
         self._album_type = ""
         self.update_status_panel()
@@ -25,6 +26,7 @@ class PrologueMixin:
             story.PROLOGUE_START_TITLE,
             story.PROLOGUE_START_BODY,
             story.PROLOGUE_START_COMMENTS,
+            clear_image=False,
         )
         self.clear_choice_buttons()
         self.add_choice("開始遊戲", self.show_city_selection)
