@@ -17,6 +17,7 @@ class PrologueMixin:
 
     def show_start(self: GlobalStarApp) -> None:
         """序章開始畫面。"""
+        self.change_bgm("Bgm.mp3") #切換至開場背景音樂
         self.set_scene_image(Path(__file__).resolve().parent.parent.parent / "image" / "Pop_Idol_Base" / "封面圖.png")   
         self.player = self._new_player_reset()
         self._album_type = ""
