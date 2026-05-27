@@ -58,7 +58,7 @@ class GlobalStarApp(
         self._current_ctk_image: Optional[ctk.CTkImage] = None
         self._bgm_player = pyglet.media.Player()
         self._bgm_player.loop = True
-        bgm_path = Path(__file__).resolve().parent.parent /  "Bgm.mp3"
+        bgm_path = Path(__file__).resolve().parent.parent / "music" / "Bgm.mp3"
         if bgm_path.is_file():
             source = pyglet.media.load(str(bgm_path))
             self._bgm_player.queue(source)
@@ -121,7 +121,34 @@ class GlobalStarApp(
             clear_image=False,
         )
         self.add_choice("開始遊戲", self.show_start)
-    
+
+    def change_bgm(self, music_name: str) -> None:
+        """切換背景音樂（重製播放器無敵版）
+        :param music_name: 音樂檔案名稱，例如 "Pop.mp3", "Rebel.mp3", "Indie.mp3"
+        """
+        # 計算 music 資料夾的絕對路徑
+        bgm_path = Path(__file__).resolve().parent.parent / "music" / music_name
+        
+        if bgm_path.is_file():
+            try:
+                # 1. 徹底停下舊的播放器並釋放
+                if hasattr(self, "_bgm_player") and self._bgm_player:
+                    self._bgm_player.pause()
+                    self._bgm_player.delete()
+                
+                # 2. 直接重新創立一個乾淨的全新 Player 物件
+                self._bgm_player = pyglet.media.Player()
+                self._bgm_player.loop = True
+                
+                # 3. 載入並播放新音樂
+                source = pyglet.media.load(str(bgm_path))
+                self._bgm_player.queue(source)
+                self._bgm_player.play()
+                
+            except Exception as e:
+                print(f"❌ [BGM 失敗] 切換音樂時發生錯誤：{e}")
+        else:
+            print(f"⚠️ [BGM 錯誤] 找不到切換的音樂檔案：{bgm_path}")
 
     def show_scene(
         self,
