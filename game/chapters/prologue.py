@@ -66,6 +66,13 @@ class PrologueMixin:
 
         def pick(style: str) -> None:
             self.player["style"] = style
+            #更換音樂
+            if style == "叛逆流派 Rebel":
+                self.change_bgm("Rebel.mp3")
+            elif style == "商業流行 Pop Idol":
+                self.change_bgm("Pop.mp3")
+            elif style == "藝術地下 Indie":
+                self.change_bgm("Indie.mp3")
             self.apply_effects(story.STYLE_EFFECTS[style])
             self.update_status_panel()
             self.show_chapter1()
