@@ -6,6 +6,8 @@ GLOBAL STAR：成名之路 — 主視窗與 UI。
 
 from __future__ import annotations
 
+import subprocess
+import shutil
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
@@ -62,6 +64,9 @@ class GlobalStarApp(
         self._ch2b_stories: Dict[str, str] = load_story_map(CH2B_STORY_FILE)
         self._ch2c_stories: Dict[str, str] = load_story_map(CH2C_STORY_FILE)
         self._current_ctk_image: Optional[ctk.CTkImage] = None
+        self._current_video_image: Any = None
+        self._video_after_id: Optional[str] = None
+        self._video_process: Optional[subprocess.Popen[bytes]] = None
         self._bgm_player = pyglet.media.Player()
         self._bgm_player.loop = True
         bgm_path = Path(__file__).resolve().parent.parent / "music" / "Bgm.mp3"
@@ -319,9 +324,11 @@ class GlobalStarApp(
 
     def clear_scene_image(self) -> None:
         """隱藏場景插圖，文字區占滿故事卡片。"""
+        self.stop_embedded_video()
         self.scene_image_label.grid_remove()
         self.scene_image_label.configure(text="")
         self._current_ctk_image = None
+        self._current_video_image = None
         self.story_card.grid_rowconfigure(0, weight=1)
         self.story_card.grid_rowconfigure(1, weight=0)
         self.story_box.grid(
@@ -353,6 +360,7 @@ class GlobalStarApp(
 
     def set_scene_image(self, image_path: Optional[Path]) -> None:
         """顯示場景插圖（嵌入故事卡片頂部）。"""
+        self.stop_embedded_video()
         if image_path is None or not image_path.is_file():
             self.clear_scene_image()
             return
@@ -384,6 +392,101 @@ class GlobalStarApp(
                 )
         except OSError:
             self.clear_scene_image()
+
+    def play_embedded_video(
+        self,
+        video_path: Path,
+        *,
+        width: int = 620,
+        height: int = 348,
+        fps: int = 15,
+    ) -> None:
+        """在故事卡片頂部播放影片，不呼叫外部播放器。"""
+        if not video_path.is_file():
+            self.update_social_reactions([f"找不到影片：{video_path}"])
+            return
+        try:
+            from PIL import Image, ImageTk
+        except ImportError:
+            self.update_social_reactions(["請安裝 Pillow 以在遊戲內播放影片。"])
+            return
+
+        self.stop_embedded_video()
+        self._current_ctk_image = None
+        self._show_scene_image_label()
+
+        ffmpeg = shutil.which("ffmpeg")
+        if ffmpeg is None:
+            homebrew_ffmpeg = Path("/opt/homebrew/bin/ffmpeg")
+            if homebrew_ffmpeg.is_file():
+                ffmpeg = str(homebrew_ffmpeg)
+        if ffmpeg is None:
+            self.update_social_reactions(["找不到 ffmpeg，無法在遊戲內播放影片。"])
+            return
+
+        vf = (
+            f"scale={width}:{height}:force_original_aspect_ratio=decrease,"
+            f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2,fps={fps}"
+        )
+        cmd = [
+            ffmpeg,
+            "-loglevel",
+            "error",
+            "-i",
+            str(video_path),
+            "-vf",
+            vf,
+            "-f",
+            "rawvideo",
+            "-pix_fmt",
+            "rgb24",
+            "pipe:1",
+        ]
+        try:
+            self._video_process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+            )
+        except OSError as exc:
+            self.update_social_reactions([f"影片無法在遊戲內播放：{exc}"])
+            return
+
+        frame_bytes = width * height * 3
+
+        def show_next_frame() -> None:
+            proc = self._video_process
+            if proc is None or proc.stdout is None:
+                return
+            data = proc.stdout.read(frame_bytes)
+            if len(data) != frame_bytes:
+                self.stop_embedded_video()
+                return
+            img = Image.frombytes("RGB", (width, height), data)
+            self._current_video_image = ImageTk.PhotoImage(img)
+            self.scene_image_label.configure(
+                image=self._current_video_image,
+                text="",
+            )
+            self._video_after_id = self.after(int(1000 / fps), show_next_frame)
+
+        show_next_frame()
+
+    def stop_embedded_video(self) -> None:
+        """停止目前內嵌影片播放。"""
+        after_id = getattr(self, "_video_after_id", None)
+        if after_id is not None:
+            try:
+                self.after_cancel(after_id)
+            except Exception:
+                pass
+            self._video_after_id = None
+
+        proc = getattr(self, "_video_process", None)
+        if proc is not None:
+            if proc.poll() is None:
+                proc.terminate()
+            self._video_process = None
 
     def _narrative(
         self,

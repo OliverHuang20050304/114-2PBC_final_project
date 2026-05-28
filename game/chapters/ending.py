@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import os
-import subprocess
-import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -32,7 +29,7 @@ class EndingMixin:
         if video_path is not None:
             self.add_choice(
                 "播放結局影片",
-                lambda p=video_path: self._open_ending_video(p),
+                lambda p=video_path: self.play_embedded_video(p),
             )
         self.add_choice("重新開始", self.restart_game)
 
@@ -52,18 +49,6 @@ class EndingMixin:
             return None
         path = ENDING_VIDEO_DIR / video_name
         return path if path.is_file() else None
-
-    def _open_ending_video(self: GlobalStarApp, video_path: Path) -> None:
-        """用系統預設播放器開啟結局影片。"""
-        try:
-            if sys.platform == "darwin":
-                subprocess.Popen(["open", str(video_path)])
-            elif os.name == "nt":
-                os.startfile(video_path)  # type: ignore[attr-defined]
-            else:
-                subprocess.Popen(["xdg-open", str(video_path)])
-        except OSError as exc:
-            self.update_social_reactions([f"影片無法開啟：{exc}"])
 
     def _format_final_stats(self: GlobalStarApp) -> str:
         """結局畫面用的最終數值摘要。"""
