@@ -154,12 +154,21 @@ class GlobalStarApp(
                 # 3. 載入並播放新音樂
                 source = pyglet.media.load(str(bgm_path))
                 self._bgm_player.queue(source)
+                if hasattr(self, "volume_slider"):
+                    self._bgm_player.volume = self.volume_slider.get()
+                else:
+                    self._bgm_player.volume = 0.5 # 沒做滑桿的話就給預設值
                 self._bgm_player.play()
                 
             except Exception as e:
                 print(f"❌ [BGM 失敗] 切換音樂時發生錯誤：{e}")
         else:
             print(f"⚠️ [BGM 錯誤] 找不到切換的音樂檔案：{bgm_path}")
+
+    def set_game_volume(self, value: float) -> None:
+        """即時根據滑桿數值變更 pyglet 播放器音量"""
+        if hasattr(self, "_bgm_player") and self._bgm_player:
+            self._bgm_player.volume = value
 
     def show_scene(
         self,
@@ -278,6 +287,24 @@ class GlobalStarApp(
             bar.pack(fill="x", pady=(6, 0))
             bar.set(0)
             self.stats_bars[key] = bar
+
+        # === 音量控制滑桿區塊 ===
+        volume_frame = ctk.CTkFrame(self.stats_frame, fg_color="transparent")
+        volume_frame.pack(fill="x", padx=14, pady=(20, 8))
+        ctk.CTkLabel(
+            volume_frame, text="遊戲音量", font=ctk.CTkFont(size=14, weight="bold")
+        ).pack(side="left")
+
+        # 建立滑桿，範圍從 0.0 到 1.0，預設值放在 0.5 (50% 音量)
+        self.volume_slider = ctk.CTkSlider(
+            volume_frame,
+            from_=0.0,
+            to=1.0,
+            number_of_steps=100,
+            command=self.set_game_volume  # 綁定滑動時要觸發的函式
+        )
+        self.volume_slider.pack(side="right", fill="x", expand=True, padx=(10, 0))
+        self.volume_slider.set(0.5) # 預設畫面為一半音量
 
         self.bottom = ctk.CTkFrame(self, fg_color="transparent")
         self.bottom.grid(row=2, column=0, columnspan=2, sticky="ew", padx=20, pady=(0, 8))
