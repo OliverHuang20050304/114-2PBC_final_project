@@ -21,7 +21,13 @@ class Chapter1Mixin:
 
     def _show_ch1_intro(self: GlobalStarApp, scene_id: str) -> None:
         """第一章引言段落（000～002）。"""
-        title = format_narrative(story.CH1_INTRO_TITLE, self.player)
+        # Only show the "question prompt" title when choices are available.
+        # Otherwise, the player sees the question too early (while only "Continue" exists).
+        title = (
+            format_narrative(story.CH1_INTRO_TITLE, self.player)
+            if scene_id == "002"
+            else ""
+        )
         comments = story.CH1_INTRO_COMMENTS.get(scene_id, story.CH1_INTRO_COMMENTS["000"])
 
         if scene_id == "000":
@@ -40,7 +46,7 @@ class Chapter1Mixin:
         if scene_id == "002":
             self.clear_choice_buttons()
             self.add_choice("交給公司製作", self._ch1_route_a)
-            self.add_choice("自己創作（成功或失敗隨機）", self._ch1_route_b_start)
+            self.add_choice("自己創作", self._ch1_route_b_start)
             self.add_choice("與神秘製作人合作", self._ch1_route_c)
 
     def _ch1_route_a(self: GlobalStarApp) -> None:

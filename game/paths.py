@@ -26,4 +26,9 @@ CH2B_STORY_FILE = CH2B_ROOT / "圖片文本對照Idol_CH2B.txt"
 CH2B_EVENT1_DIR = CH2B_ROOT / "2B事件一"
 CH2B_EVENT2_DIR = CH2B_ROOT / "2B事件二"
 
+CH2C_ROOT = PROJECT_ROOT / "image" / "Pop_Idol_Base" / "2C黑暗"
+CH2C_STORY_FILE = CH2C_ROOT / "圖片文本對照Idol_CH2C.txt"
+
+ENDING_VIDEO_DIR = PROJECT_ROOT / "image" / "Pop_Idol_Base" / "結局"
+
 SCENE_IMAGE_MAX_SIZE = (680, 380)

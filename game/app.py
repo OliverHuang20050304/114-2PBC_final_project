@@ -22,7 +22,12 @@ from game.chapters.ch3 import Chapter3Mixin
 from game.chapters.ending import EndingMixin
 from game.chapters.prologue import PrologueMixin
 from game.images import ch1_image_path
-from game.paths import CH2A_STORY_FILE, CH2B_STORY_FILE, SCENE_IMAGE_MAX_SIZE
+from game.paths import (
+    CH2A_STORY_FILE,
+    CH2B_STORY_FILE,
+    CH2C_STORY_FILE,
+    SCENE_IMAGE_MAX_SIZE,
+)
 from game.player import apply_deltas, clamp_player, new_player
 from game.story_io import format_narrative, load_ch1_story_map, load_story_map
 
@@ -55,6 +60,7 @@ class GlobalStarApp(
         self._ch1_stories: Dict[str, str] = load_ch1_story_map()
         self._ch2a_stories: Dict[str, str] = load_story_map(CH2A_STORY_FILE)
         self._ch2b_stories: Dict[str, str] = load_story_map(CH2B_STORY_FILE)
+        self._ch2c_stories: Dict[str, str] = load_story_map(CH2C_STORY_FILE)
         self._current_ctk_image: Optional[ctk.CTkImage] = None
         self._bgm_player = pyglet.media.Player()
         self._bgm_player.loop = True

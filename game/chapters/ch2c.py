@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import random
 from typing import TYPE_CHECKING
 
+from game.images import ch2c_image_path
 from story import ch2c as story
 
 if TYPE_CHECKING:
@@ -14,11 +16,30 @@ class Chapter2CMixin:
     """第二章 C：地下黑暗線。"""
 
     def _show_ch2c_viral(self: GlobalStarApp) -> None:
-        body = story.CH2C_OPEN_BODY
-        if self.player.get("hidden_producer"):
-            body += story.CH2C_HIDDEN_PRODUCER_EXTRA
+        has_producer = bool(self.player.get("hidden_producer"))
+        self.set_scene_image(ch2c_image_path("046"))
+        self.show_scene(
+            story.CH2C_TITLE,
+            story.CH2C_OPEN_BODY,
+            story.CH2C_OPEN_COMMENTS,
+            clear_image=False,
+        )
+        self.clear_choice_buttons()
+        self.add_choice("繼續", lambda: self._show_ch2c_decision(has_producer))
 
-        self.show_scene(story.CH2C_TITLE, body, story.CH2C_OPEN_COMMENTS)
+    def _show_ch2c_decision(self: GlobalStarApp, has_producer: bool) -> None:
+        body = (
+            story.CH2C_HIDDEN_PRODUCER_EXTRA
+            if has_producer
+            else story.CH2C_NO_PRODUCER_EXTRA
+        )
+        self.set_scene_image(ch2c_image_path("048" if has_producer else "047"))
+        self.show_scene(
+            story.CH2C_TITLE,
+            body,
+            story.CH2C_OPEN_COMMENTS,
+            clear_image=False,
+        )
         self.clear_choice_buttons()
 
         def pick_commerce() -> None:
@@ -26,36 +47,62 @@ class Chapter2CMixin:
                 {"fame": 15, "money": 12, "image": -8, "identity": -10}
             )
             self.update_status_panel()
-            self._ch2c_show_result("commerce")
+            self._ch2c_show_result("commerce", on_finish=self.show_chapter3)
 
         def pick_underground() -> None:
             self.apply_effects(
-                {"image": 12, "identity": 12, "fame": 3, "money": -3}
+                {"fame": -15, "image": 5, "identity": 8, "money": -5}
             )
+            self.player["forced_ending"] = "fallen"
             self.update_status_panel()
-            self._ch2c_show_result("underground")
+            self._ch2c_show_result("underground", on_finish=self.show_ending)
 
-        def pick_pr() -> None:
+        def pick_respond() -> None:
             self.apply_effects(
                 {
-                    "fame": 18,
-                    "controversy": 18,
-                    "image": -12,
+                    "fame": 20,
+                    "controversy": 25,
+                    "image": -18,
                     "identity": -5,
                     "health": -5,
                 }
             )
             self.update_status_panel()
-            nxt = (
-                self._show_hidden_producer_reveal
-                if self.player.get("hidden_producer")
-                else self.show_chapter3
-            )
-            self._ch2c_show_result("pr", on_finish=nxt)
+            self._ch2c_show_result("respond", on_finish=self.show_chapter3)
+
+        def pick_investigate() -> None:
+            if random.random() < 0.5:
+                self.apply_effects(
+                    {"fame": 12, "image": 25, "identity": 15, "controversy": -10}
+                )
+                self.player["route"] = "stable"
+                self.update_status_panel()
+                self._ch2c_show_result(
+                    "investigate_success",
+                    on_finish=self.show_chapter3,
+                )
+            else:
+                self.apply_effects(
+                    {
+                        "fame": -30,
+                        "image": -30,
+                        "health": -20,
+                        "controversy": 25,
+                        "money": -10,
+                    }
+                )
+                self.player["forced_ending"] = "fallen"
+                self.update_status_panel()
+                self._ch2c_show_result(
+                    "investigate_fail",
+                    on_finish=self.show_ending,
+                )
 
         self.add_choice("抓緊機會，接受商業化", pick_commerce)
-        self.add_choice("順其自然，堅持地下風格", pick_underground)
-        self.add_choice("操作輿論，把影響力最大化", pick_pr)
+        self.add_choice("順其自然，沒有大動作", pick_underground)
+        if has_producer:
+            self.add_choice("回應網路反應", pick_respond)
+            self.add_choice("私下展開調查", pick_investigate)
 
     def _ch2c_show_result(
         self: GlobalStarApp,
@@ -69,38 +116,4 @@ class Chapter2CMixin:
             result_body,
             comments,
             on_finish or self.show_chapter3,
-        )
-
-    def _show_hidden_producer_reveal(self: GlobalStarApp) -> None:
-        self.show_scene(
-            story.CH2C_REVEAL_TITLE,
-            story.CH2C_REVEAL_BODY,
-            story.CH2C_REVEAL_COMMENTS,
-        )
-        self.clear_choice_buttons()
-
-        def pick_use() -> None:
-            self.apply_effects(
-                {"fame": 10, "controversy": 10, "identity": -10, "image": -5}
-            )
-            self.update_status_panel()
-            self._ch2c_show_reveal_result("use")
-
-        def pick_cut() -> None:
-            self.apply_effects(
-                {"image": 8, "identity": 10, "fame": -5, "health": -3}
-            )
-            self.update_status_panel()
-            self._ch2c_show_reveal_result("cut")
-
-        self.add_choice("繼續利用這股力量", pick_use)
-        self.add_choice("試著切斷與神秘製作人的關係", pick_cut)
-
-    def _ch2c_show_reveal_result(self: GlobalStarApp, key: str) -> None:
-        result_title, result_body, comments = story.CH2C_REVEAL_RESULT_SCENES[key]
-        self.show_result_scene(
-            result_title,
-            result_body,
-            comments,
-            self.show_chapter3,
         )

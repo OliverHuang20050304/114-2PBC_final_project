@@ -14,6 +14,7 @@ from game.paths import (
     CH2B_EVENT1_DIR,
     CH2B_EVENT2_DIR,
     CH2B_ROOT,
+    CH2C_ROOT,
 )
 
 
@@ -60,4 +61,13 @@ def ch2b_image_path(scene_id: str) -> Optional[Path]:
         path = CH2B_EVENT2_DIR / f"{sid}.jpg"
     else:
         return None
+    return path if path.is_file() else None
+
+
+def ch2c_image_path(scene_id: str) -> Optional[Path]:
+    """依場景編號回傳第二章 C 路線 JPG 路徑。"""
+    sid = scene_id.zfill(3)
+    if sid not in {"046", "047", "048"}:
+        return None
+    path = CH2C_ROOT / f"{sid}.jpg"
     return path if path.is_file() else None

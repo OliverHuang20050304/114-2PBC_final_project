@@ -75,7 +75,7 @@ class SceneSequenceMixin:
         """第一章：依序播放帶圖場景。"""
         self._play_scene_sequence(
             scene_ids,
-            "CHAPTER 1",
+            "",
             story_map=self._ch1_stories,
             image_resolver=ch1_image_path,
             social_at=social_at,

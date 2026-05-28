@@ -16,12 +16,10 @@ class Chapter2BMixin:
 
     def _show_ch2b_album(self: GlobalStarApp) -> None:
         """第二章 B：開場（032～034）與專輯方向抉擇。"""
-        title = story.CH2B_ALBUM_TITLE
-
         def show_album_choice() -> None:
             self.show_visual_scene(
                 "034",
-                title,
+                story.CH2B_ALBUM_TITLE,
                 comments=story.CH2B_ALBUM_CHOICE_COMMENTS,
                 story_map=self._ch2b_stories,
                 image_resolver=ch2b_image_path,
@@ -35,7 +33,7 @@ class Chapter2BMixin:
 
         self._ch2b_play(
             ["032", "033"],
-            title,
+            "",
             social_at=story.CH2B_ALBUM_OPEN_SOCIAL,
             on_finish=show_album_choice,
         )
@@ -107,19 +105,22 @@ class Chapter2BMixin:
             final_continue=False,
         )
 
-    def _ch2b_show_result(self: GlobalStarApp, key: str) -> None:
+    def _ch2b_show_result(self: GlobalStarApp, key: str, *, on_finish=None) -> None:
         result_title, result_body, comments = story.CH2B_RESULT_SCENES[key]
         self.show_result_scene(
             result_title,
             result_body,
             comments,
-            self.show_chapter3,
+            on_finish or self.show_chapter3,
         )
 
     def _ch2b_pick_safe(self: GlobalStarApp) -> None:
-        self.apply_effects({"fame": 10, "money": 10, "image": -3, "identity": -8})
+        self.apply_effects(
+            {"fame": -25, "money": -5, "image": -20, "health": -70, "identity": -20}
+        )
+        self.player["forced_ending"] = "fallen"
         self.update_status_panel()
-        self._ch2b_show_result("safe")
+        self._ch2b_show_result("safe", on_finish=self.show_ending)
 
     def _ch2b_pick_art(self: GlobalStarApp) -> None:
         self.apply_effects({"image": 10, "identity": 8, "fame": 3, "money": -3})
@@ -132,6 +133,9 @@ class Chapter2BMixin:
         self._ch2b_show_result("slow")
 
     def _ch2b_pick_market(self: GlobalStarApp) -> None:
-        self.apply_effects({"fame": 10, "money": 8, "image": -3, "identity": -5})
+        self.apply_effects(
+            {"fame": 18, "money": 8, "image": -8, "health": -70, "identity": -18}
+        )
+        self.player["forced_ending"] = "fallen"
         self.update_status_panel()
-        self._ch2b_show_result("market")
+        self._ch2b_show_result("market", on_finish=self.show_ending)
