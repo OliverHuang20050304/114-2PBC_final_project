@@ -5,7 +5,28 @@ GLOBAL STAR：成名之路 — 主視窗與 UI。
 """
 
 from __future__ import annotations
+#=== FFmpeg 壓縮檔自動解壓與配置機制 ===
+import os
+import sys
+import zipfile
+from pathlib import Path
 
+current_dir = Path(__file__).resolve().parent
+zip_path = current_dir / "ffmpeg.zip"
+exe_path = current_dir / "ffmpeg.exe"
+
+if zip_path.is_file() and not exe_path.is_file():
+    try:
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            zip_ref.extractall(current_dir)
+    except Exception as e:
+        pass
+
+# 2. 自動把當前專案目錄寫進系統 PATH
+current_dir_str = str(current_dir)
+if current_dir_str not in os.environ["PATH"]:
+    os.environ["PATH"] = current_dir_str + os.pathsep + os.environ["PATH"]
+#============================================
 import subprocess
 import shutil
 from pathlib import Path
