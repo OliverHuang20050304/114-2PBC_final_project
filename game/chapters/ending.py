@@ -29,7 +29,7 @@ class EndingMixin:
         if video_path is not None:
             self.add_choice(
                 "播放結局影片",
-                lambda p=video_path: self._open_video_with_system(p),
+                lambda p=video_path: self.play_embedded_video(p),
             )
         self.add_choice("重新開始", self.restart_game)
 
@@ -50,14 +50,6 @@ class EndingMixin:
         path = ENDING_VIDEO_DIR / video_name
         return path if path.is_file() else None
     
-    def _open_video_with_system(self: GlobalStarApp, path: Path) -> None:
-        """使用系統預設程式開啟影片檔案。"""
-        import os
-        try:
-            os.startfile(str(path))
-        except Exception as e:
-            self.update_social_reactions([f"無法開啟影片：{e}"])
-
     def _format_final_stats(self: GlobalStarApp) -> str:
         """結局畫面用的最終數值摘要。"""
         p = self.player
