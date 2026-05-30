@@ -98,11 +98,12 @@ class Chapter2CMixin:
                     on_finish=self.show_ending,
                 )
 
-        self.add_choice("抓緊機會，接受商業化", pick_commerce)
-        self.add_choice("順其自然，沒有大動作", pick_underground)
         if has_producer:
             self.add_choice("回應網路反應", pick_respond)
             self.add_choice("私下展開調查", pick_investigate)
+        else:
+            self.add_choice("抓緊機會，接受商業化", pick_commerce)
+            self.add_choice("順其自然，沒有大動作", pick_underground)
 
     def _ch2c_show_result(
         self: GlobalStarApp,
