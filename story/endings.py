@@ -10,7 +10,9 @@ ENDING_POP_ICON = (
     "#全球巡演 #時代巨星 #被觀看的人生\n\n"
     "你成為時代的代表，全球巡演售罄，廣告、獎項與時尚資源接踵而來。"
     "所有人都知道你的名字，而你的一言一行都能定義流行文化。"
-    "只是某些深夜裡，你偶爾會懷疑，舞台上的那個人是否還是最初的自己。",
+    "只是某些深夜裡，你偶爾會懷疑，舞台上的那個人是否還是最初的自己。\n\n"
+    "Part of growing up and moving into new chapters of your life is about catch and release.——Taylor Swift\n\n"
+    "You’re not getting it. It’s not clocking to you … I don’t give a f—k if you’re on the sidewalk. I’m a human f–king being, you’re standing around my car, at the beach!——Justin Bieber\n\n",
 )
 
 ENDING_CONTROVERSIAL = (
@@ -19,7 +21,9 @@ ENDING_CONTROVERSIAL = (
     "#瘋狂天才 #失控 #混亂 #拒絕被馴服的靈魂\n\n"
     "一半的人愛你，一半的人恨你。你不只是歌手，而是話題本身。"
     "每一次發言、沉默、轉身，都能讓世界再次討論你。"
-    "你站在傳奇與災難之間，永遠被觀看，也永遠不能鬆手。",
+    "你站在傳奇與災難之間，永遠被觀看，也永遠不能鬆手。\n\n"
+    "Truth is my goal. Controversy is my gym. I'll do a hundred reps of controversy for a 6 pack of truth.——Kanye West\n\n"
+    "I want to tell the people out there, thank you for supporting me. And if you don't, suck my dick——Cardi B\n\n",
 )
 
 ENDING_ARTISTIC = (
@@ -28,7 +32,10 @@ ENDING_ARTISTIC = (
     "#拒絕營業 #十年磨一劍 #有時會不見\n\n"
     "你沒有成為最容易被消費的明星，卻成為最難被取代的存在。"
     "多年後，音樂學院與樂評人開始研究你的作品。"
-    "世界曾經嫌你太慢、太安靜、太難懂，最後卻承認你留下了真正能穿越時間的聲音。",
+    "世界曾經嫌你太慢、太安靜、太難懂，最後卻承認你留下了真正能穿越時間的聲音。\n\n"
+    "When your art comes from a real place, the noise of the world just fades away——Lana Del Rey\n\n"
+    "My pussy tastes like Pepsi Cola——also Lana Del Rey\n\n"
+    "My music is great for crying, but please don’t cry in front of me. It’s awkward.——Frank Ocean\n\n",
 )
 
 ENDING_FALLEN = (
