@@ -3,12 +3,43 @@
 from __future__ import annotations
 
 import random
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, List, Tuple
 
 from story import ch3 as story
 
 if TYPE_CHECKING:
     from game.app import GlobalStarApp
+
+
+# 各分支開場序列（最後一張停住並顯示選項）。
+CH3_OPEN_SCENES: Dict[str, List[str]] = {
+    "global_icon": ["100", "101"],
+    "mature_artist": ["110", "111", "112"],
+    "controversial": ["130", "131"],
+    "controversial_hidden": ["140", "141"],
+}
+
+# (分支, 選項) -> 結果圖片序列。
+CH3_RESULT_SCENES: Dict[Tuple[str, str], List[str]] = {
+    ("global_icon", "brand"): ["102", "103", "104", "105", "106"],
+    ("global_icon", "refuse"): ["107", "108", "109"],
+    ("mature_artist", "integrity"): ["113", "114", "115", "116", "117"],
+    ("mature_artist", "deal"): [
+        "118",
+        "119",
+        "120",
+        "121",
+        "122",
+        "123",
+        "124",
+        "125",
+    ],
+    ("mature_artist", "deal_exposed"): ["126", "127", "128", "129"],
+    ("controversial", "fight"): ["132", "133", "134"],
+    ("controversial", "apology"): ["135", "136", "137", "138", "139"],
+    ("controversial_hidden", "abyss"): ["142", "143", "144"],
+    ("controversial_hidden", "reveal"): ["145", "146", "147", "148"],
+}
 
 
 class Chapter3Mixin:
@@ -28,15 +59,27 @@ class Chapter3Mixin:
         return "mature_artist"
 
     def show_chapter3(self: GlobalStarApp) -> None:
-        """第三章：依形象與名氣決定分支。"""
+        """第三章：依形象與名氣決定分支，播放開場圖片序列後顯示選項。"""
         branch = self._chapter3_branch()
         if branch == "controversial" and self.player.get("hidden_producer"):
             branch = "controversial_hidden"
-        open_title, open_body, open_comments, choices = story.CH3_BRANCHES[branch]
 
-        self.show_scene(open_title, open_body, open_comments)
+        open_title, _, open_comments, _ = story.CH3_BRANCHES[branch]
+        scene_ids = CH3_OPEN_SCENES[branch]
+        # 開場社群留言掛在最後一張開場圖上。
+        social_at = {scene_ids[-1]: open_comments}
+
+        self._ch3_play(
+            scene_ids,
+            open_title,
+            social_at=social_at,
+            on_finish=lambda: self._ch3_show_choices(branch),
+            final_continue=False,
+        )
+
+    def _ch3_show_choices(self: GlobalStarApp, branch: str) -> None:
+        """開場序列播完後，清空按鈕並加入分支選項。"""
         self.clear_choice_buttons()
-
         if branch == "global_icon":
             self.add_choice(
                 "簽約，接受奢侈品牌代言",
@@ -81,7 +124,7 @@ class Chapter3Mixin:
 
     def _ch3_pick(self: GlobalStarApp, branch: str, choice: str) -> None:
         _, _, _, choices = story.CH3_BRANCHES[branch]
-        result_title, result_body, comments = choices[choice]
+        result_title, _, comments = choices[choice]
 
         effects_map = {
             ("global_icon", "brand"): {
@@ -161,11 +204,15 @@ class Chapter3Mixin:
         self.apply_effects(effects_map[(branch, choice)])
         self.player["forced_ending"] = forced_endings[(branch, choice)]
         self.update_status_panel()
-        self.show_result_scene(
+
+        scene_ids = CH3_RESULT_SCENES[(branch, choice)]
+        # 結果社群留言掛在最後一張結果圖上。
+        social_at = {scene_ids[-1]: comments}
+        self._ch3_play(
+            scene_ids,
             result_title,
-            result_body,
-            comments,
-            self._show_final_night,
+            social_at=social_at,
+            on_finish=self._show_final_night,
         )
 
     def _show_final_night(self: GlobalStarApp) -> None:

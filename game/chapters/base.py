@@ -5,7 +5,12 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable, Dict, List, Optional
 
-from game.images import ch1_image_path, ch2a_image_path, ch2b_image_path
+from game.images import (
+    ch1_image_path,
+    ch2a_image_path,
+    ch2b_image_path,
+    ch3_image_path,
+)
 from story.ch1 import CH1_DEFAULT_SOCIAL
 
 if TYPE_CHECKING:
@@ -117,6 +122,26 @@ class SceneSequenceMixin:
             title,
             story_map=self._ch2b_stories,
             image_resolver=ch2b_image_path,
+            social_at=social_at,
+            on_finish=on_finish,
+            final_continue=final_continue,
+        )
+
+    def _ch3_play(
+        self: GlobalStarApp,
+        scene_ids: List[str],
+        title: str,
+        *,
+        social_at: Optional[Dict[str, List[str]]] = None,
+        on_finish: Callable[[], None],
+        final_continue: bool = True,
+    ) -> None:
+        """第三章：依序播放帶圖場景。"""
+        self._play_scene_sequence(
+            scene_ids,
+            title,
+            story_map=self._ch3_stories,
+            image_resolver=ch3_image_path,
             social_at=social_at,
             on_finish=on_finish,
             final_continue=final_continue,

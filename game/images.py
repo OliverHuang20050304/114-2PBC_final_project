@@ -15,6 +15,9 @@ from game.paths import (
     CH2B_EVENT2_DIR,
     CH2B_ROOT,
     CH2C_ROOT,
+    CH3_BRANCH1_DIR,
+    CH3_BRANCH2_DIR,
+    CH3_BRANCH3_DIR,
 )
 
 
@@ -70,4 +73,27 @@ def ch2c_image_path(scene_id: str) -> Optional[Path]:
     if sid not in {"046", "047", "048"}:
         return None
     path = CH2C_ROOT / f"{sid}.jpg"
+    return path if path.is_file() else None
+
+
+def ch3_image_path(scene_id: str) -> Optional[Path]:
+    """依場景編號回傳第三章對應 PNG 路徑。
+
+    Args:
+        scene_id: 場景編號，例如 "100"。100~120 對應 CH3_new_1，
+            121~134 對應 CH3_new_2，135~148 對應 CH3_new_3。
+
+    Returns:
+        對應圖片的絕對路徑；若編號不在範圍內或檔案不存在則回傳 None。
+    """
+    sid = scene_id.zfill(3)
+    num = int(sid)
+    if 100 <= num <= 120:
+        path = CH3_BRANCH1_DIR / f"{sid}.png"
+    elif 121 <= num <= 134:
+        path = CH3_BRANCH2_DIR / f"{sid}.png"
+    elif 135 <= num <= 148:
+        path = CH3_BRANCH3_DIR / f"{sid}.png"
+    else:
+        return None
     return path if path.is_file() else None

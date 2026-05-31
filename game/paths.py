@@ -29,6 +29,12 @@ CH2B_EVENT2_DIR = CH2B_ROOT / "2B事件二"
 CH2C_ROOT = PROJECT_ROOT / "image" / "Pop_Idol_Base" / "2C黑暗"
 CH2C_STORY_FILE = CH2C_ROOT / "圖片文本對照Idol_CH2C.txt"
 
+CH3_ROOT = PROJECT_ROOT / "image" / "Pop_Idol_Base" / "CH3"
+CH3_STORY_FILE = CH3_ROOT / "圖片文本對照CH3.txt"
+CH3_BRANCH1_DIR = CH3_ROOT / "CH3_new_1"
+CH3_BRANCH2_DIR = CH3_ROOT / "CH3_new_2"
+CH3_BRANCH3_DIR = CH3_ROOT / "CH3_new_3"
+
 ENDING_VIDEO_DIR = PROJECT_ROOT / "image" / "Pop_Idol_Base" / "結局"
 
 SCENE_IMAGE_MAX_SIZE = (680, 380)

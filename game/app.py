@@ -49,6 +49,7 @@ from game.paths import (
     CH2A_STORY_FILE,
     CH2B_STORY_FILE,
     CH2C_STORY_FILE,
+    CH3_STORY_FILE,
     SCENE_IMAGE_MAX_SIZE,
 )
 from game.player import apply_deltas, clamp_player, new_player
@@ -84,6 +85,7 @@ class GlobalStarApp(
         self._ch2a_stories: Dict[str, str] = load_story_map(CH2A_STORY_FILE)
         self._ch2b_stories: Dict[str, str] = load_story_map(CH2B_STORY_FILE)
         self._ch2c_stories: Dict[str, str] = load_story_map(CH2C_STORY_FILE)
+        self._ch3_stories: Dict[str, str] = load_story_map(CH3_STORY_FILE)
         self._current_ctk_image: Optional[ctk.CTkImage] = None
         self._current_video_image: Any = None
         self._video_after_id: Optional[str] = None
